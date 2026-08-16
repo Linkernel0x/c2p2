@@ -32,7 +32,7 @@ namespace c2p2::modules {
     ) const {
         int shift = 3;
 
-        if (auto it = params.find("shift"); it != params.end()) {
+        if (auto it = params.find("--shift"); it != params.end()) {
             try {
                 shift = std::stoi(it->second);
             } catch (...) {
