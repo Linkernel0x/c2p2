@@ -9,10 +9,25 @@
 #include <sstream>
 #include <format>
 #include <fstream>
+#include <algorithm>
 
 namespace c2p2::tui {
 
 using namespace ftxui;
+
+static std::string buffer_to_safe_string(const DataBuffer& buffer) {
+    std::string safe_str;
+    safe_str.reserve(buffer.size());
+    for (std::byte b : buffer) {
+        unsigned char c = static_cast<unsigned char>(b);
+        if (std::isprint(c) || c == '\n' || c == '\t' || c == '\r') {
+            safe_str += static_cast<char>(c);
+        } else {
+            safe_str += '.';
+        }
+    }
+    return safe_str;
+}
 
 static DataBuffer read_file(const std::string& filepath) {
     std::ifstream file(filepath, std::ios::binary | std::ios::ate);
@@ -44,6 +59,26 @@ int run() {
     std::string input_text = "Welcome to c2p2!";
     std::string output_text;
 
+    auto execute_pipeline = [&]() {
+        if (pipeline.get_steps().empty()) {
+            output_text = input_text;
+            return;
+        }
+
+        DataBuffer in_buffer;
+        in_buffer.reserve(input_text.size());
+        for (char c : input_text) {
+            in_buffer.push_back(static_cast<std::byte>(c));
+        }
+
+        auto res = pipeline.run(in_buffer);
+        if (res) {
+            output_text = buffer_to_safe_string(*res);
+        } else {
+            output_text = "Error: " + res.error().message;
+        }
+    };
+
     auto sync_pipeline_ui = [&]() {
         pipeline_entries.clear();
         const auto& steps = pipeline.get_steps();
@@ -55,13 +90,20 @@ int run() {
         if (selected_pipeline_index >= static_cast<int>(pipeline_entries.size())) {
             selected_pipeline_index = std::max(0, static_cast<int>(pipeline_entries.size()) - 1);
         }
+        execute_pipeline();
     };
 
     MenuOption menu_option;
     auto pipeline_menu = Menu(&pipeline_entries, &selected_pipeline_index, menu_option);
 
-    InputOption input_option;
-    input_option.on_enter = [&] {
+    InputOption input_box_option;
+    input_box_option.on_change = [&] {
+        execute_pipeline();
+    };
+    auto input_box = Input(&input_text, "Type input text here...", input_box_option);
+
+    InputOption command_option;
+    command_option.on_enter = [&] {
         if (command_input.empty()) return;
 
         std::stringstream ss(command_input);
@@ -71,11 +113,6 @@ int run() {
         if (cmd == "add") {
             std::string id, module_name, action;
             if (ss >> id >> module_name >> action && !action.empty()) {
-                if (action.empty()) {
-                    output_text = "Error: Action cannot be empty!";
-                    command_input.clear();
-                    return;
-                }
                 auto mod = Registry::instance().create(module_name);
                 if (mod) {
                     ParamsMap params;
@@ -91,7 +128,7 @@ int run() {
                     bool action_valid = std::find(valid_actions.begin(), valid_actions.end(), action) != valid_actions.end();
 
                     if (!action_valid) {
-                        output_text = std::format("Error: Action '{}' non valid for module '{}'!", action, module_name);
+                        output_text = std::format("Error: Action '{}' not valid for module '{}'!", action, module_name);
                         command_input.clear();
                         return;
                     }
@@ -120,17 +157,16 @@ int run() {
         else if (cmd == "list") {
             output_text = "Modules:\n";
             for (const auto& [id, _] : Registry::instance().get_all()) {
-                output_text += "- " + id + "\n";
+                output_text += "- " + id;
 
                 auto temp_mod = Registry::instance().create(id);
-                if (temp_mod)
-                {
+                if (temp_mod) {
                     auto actions = temp_mod->get_supported_actions();
-                    output_text += "  · Actions: ";
+                    output_text += "  ·  ";
                     for (const auto& action : actions) {
-                        output_text += action + " ";
+                        output_text += action + ", ";
                     }
-                    output_text += "\n";
+                    output_text += '\n';
                 }
             }
         }
@@ -138,8 +174,7 @@ int run() {
             pipeline.clear();
             sync_pipeline_ui();
         }
-        else if (cmd == "run")
-        {
+        else if (cmd == "run") {
             std::string token;
             DataBuffer in_buffer;
             std::string output_file_path;
@@ -174,8 +209,7 @@ int run() {
                         output_text = "Error while saving file!";
                     }
                 } else {
-                    output_text.clear();
-                    for (std::byte b : *res) output_text += static_cast<char>(b);
+                    output_text = buffer_to_safe_string(*res);
                 }
             } else {
                 output_text = "Error: " + res.error().message;
@@ -195,23 +229,36 @@ int run() {
         command_input.clear();
     };
 
-    auto command_box = Input(&command_input, " >", input_option);
+    auto command_box = Input(&command_input, " >", command_option);
 
-    auto container = Container::Vertical({
-        Container::Horizontal({ pipeline_menu }),
+    auto output_renderer = Renderer([&] {
+        return paragraph(output_text) | yframe | vscroll_indicator;
+    });
+
+    auto main_container = Container::Vertical({
+        Container::Horizontal({
+            pipeline_menu,
+            Container::Vertical({
+                input_box,
+                output_renderer
+            })
+        }),
         command_box
     });
 
-    auto main_renderer = Renderer(container, [&] {
+    auto main_renderer = Renderer(main_container, [&] {
         auto left_column = window(text(" Pipeline "), pipeline_menu->Render()) | size(WIDTH, EQUAL, 35);
-        auto top_right = window(text(" Input "), paragraph(input_text)) | flex;
-        auto bottom_right = window(text(" Output "), paragraph(output_text)) | flex;
+        auto top_right = window(text(" Input "), input_box->Render()) | size(HEIGHT, LESS_THAN, 8);
+        auto bottom_right = window(text(" Output "), output_renderer->Render()) | flex;
+
         auto right_column = vbox({ top_right, bottom_right }) | flex;
         auto main_area = hbox({ left_column, right_column }) | flex;
         auto bottom_area = window(text(" Command "), command_box->Render()) | size(HEIGHT, EQUAL, 3);
 
         return window(text(" c2p2 "), vbox({ main_area, bottom_area }) | flex);
     });
+
+    execute_pipeline();
 
     screen.Loop(main_renderer);
     return 0;

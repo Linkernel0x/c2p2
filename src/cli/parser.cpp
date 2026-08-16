@@ -12,8 +12,8 @@ int run(int argc, char* argv[]) {
         return 1;
     }
 
-    std::string module_name = argv[1]; // e.g., rot13
-    std::string action = argv[2];      // e.g., encode
+    std::string module_name = argv[1];
+    std::string action = argv[2];
 
     auto mod = Registry::instance().create(module_name);
     if (!mod) {
@@ -36,6 +36,9 @@ int run(int argc, char* argv[]) {
                 f.seekg(0, std::ios::beg);
                 in_buffer.resize(size);
                 f.read(reinterpret_cast<char*>(in_buffer.data()), size);
+            } else {
+                std::cerr << "Error: Could not open input file '" << argv[i] << "'\n";
+                return 1;
             }
         }
         else if (arg == "--output-file" && i + 1 < argc) {
@@ -65,7 +68,12 @@ int run(int argc, char* argv[]) {
 
     if (!output_file_path.empty()) {
         std::ofstream out(output_file_path, std::ios::binary);
-        out.write(reinterpret_cast<const char*>(result->data()), result->size());
+        if (out) {
+            out.write(reinterpret_cast<const char*>(result->data()), result->size());
+        } else {
+            std::cerr << "Error: Could not open output file '" << output_file_path << "'\n";
+            return 1;
+        }
     } else {
         for (std::byte b : *result) std::cout << static_cast<char>(b);
         std::cout << "\n";

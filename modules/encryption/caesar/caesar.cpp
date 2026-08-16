@@ -1,5 +1,6 @@
 #include "caesar.hpp"
 #include <string>
+#include <format>
 
 namespace c2p2::modules {
 
@@ -46,6 +47,10 @@ namespace c2p2::modules {
         if (action == "decrypt") {
             return transform_caesar(input, -shift);
         }
+
+        return std::unexpected(ModuleError{
+            .message = std::format("Unsupported action '{}' for Caesar module", action)
+        });
     }
 
 }
