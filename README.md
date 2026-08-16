@@ -50,16 +50,3 @@ In TUI mode, you can create a pipeline of multiple modules working together. You
 * `help` – Displays help information.
 
 *More coming soon!*
-
-## Building the Project
-
-Requirements:
-
-* C++20 compatible compiler (GCC, Clang, or MSVC)
-* CMake (3.20+)
-
-```bash
-mkdir build && cd build
-cmake ..
-cmake --build .
-```
