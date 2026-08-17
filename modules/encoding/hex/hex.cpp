@@ -19,12 +19,12 @@ namespace c2p2::modules {
 
         if (action == "encode") {
             bool uppercase = false;
-            if (const auto it = params.find("uppercase"); it != params.end()) {
+            if (const auto it = params.find("--uppercase"); it != params.end()) {
                 uppercase = (it->second == "true" || it->second == "1");
             }
 
             std::string delimiter;
-            if (const auto it = params.find("delimiter"); it != params.end()) {
+            if (const auto it = params.find("--delimiter"); it != params.end()) {
                 delimiter = it->second;
             }
 
@@ -48,48 +48,71 @@ namespace c2p2::modules {
                     }
                 }
             }
-
-            return output;
         }
         else if (action == "decode") {
-            DataBuffer clean_input;
-            clean_input.reserve(input.size());
+    DataBuffer clean_input;
+    clean_input.reserve(input.size());
 
-            for (std::byte b : input) {
-                char c = static_cast<char>(b);
-                if (!std::isspace(static_cast<unsigned char>(c))) {
-                    clean_input.push_back(b);
-                }
+    bool uppercase = false;
+    if (const auto it = params.find("--uppercase"); it != params.end()) {
+        uppercase = (it->second == "true" || it->second == "1");
+    }
+
+    std::string delimiter;
+    if (const auto it = params.find("--delimiter"); it != params.end()) {
+        delimiter = it->second;
+    }
+
+    size_t i = 0;
+    while (i < input.size()) {
+        char c = static_cast<char>(input[i]);
+        if (!delimiter.empty() && i + delimiter.size() <= input.size()) {
+            std::string_view sub(reinterpret_cast<const char*>(input.data() + i), delimiter.size());
+            if (sub == delimiter) {
+                i += delimiter.size();
+                continue;
             }
-
-            if (clean_input.size() % 2 != 0) {
-                return std::unexpected(ModuleError{
-                    .message = "Hex decode error: Input length must be even (excluding whitespace)"
-                });
-            }
-
-            output.reserve(clean_input.size() / 2);
-
-            for (size_t i = 0; i < clean_input.size(); i += 2) {
-                const uint8_t high = hex_to_nibble(static_cast<char>(clean_input[i]));
-                const uint8_t low = hex_to_nibble(static_cast<char>(clean_input[i + 1]));
-
-                if (high == 255 || low == 255) {
-                    return std::unexpected(ModuleError{
-                        .message = std::format("Hex decode error: Invalid hex character found")
-                    });
-                }
-
-                uint8_t byte_val = (high << 4) | low;
-                output.push_back(static_cast<std::byte>(byte_val));
-            }
-
-            return output;
         }
 
+        if (std::isspace(static_cast<unsigned char>(c))) {
+            i++;
+            continue;
+        }
+
+        if (uppercase && (c >= 'a' && c <= 'f')) {
+            return std::unexpected(ModuleError{
+                .message = "Hex decode error: Lowercase character found while --uppercase is active"
+            });
+        }
+
+        clean_input.push_back(input[i]);
+        i++;
+    }
+
+    if (clean_input.size() % 2 != 0) {
         return std::unexpected(ModuleError{
-            .message = std::format("Unsupported action '{}' for Hex module", action)
+            .message = "Hex decode error: Input length must be even (excluding whitespace and delimiters)"
         });
+    }
+
+    output.reserve(clean_input.size() / 2);
+
+    for (size_t idx = 0; idx < clean_input.size(); idx += 2) {
+        const uint8_t high = hex_to_nibble(static_cast<char>(clean_input[idx]));
+        const uint8_t low = hex_to_nibble(static_cast<char>(clean_input[idx + 1]));
+
+        if (high == 255 || low == 255) {
+            return std::unexpected(ModuleError{
+                .message = "Hex decode error: Invalid hex character found"
+            });
+        }
+
+        uint8_t byte_val = (high << 4) | low;
+        output.push_back(static_cast<std::byte>(byte_val));
+    }
+}
+
+        return output;
     }
 
 }

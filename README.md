@@ -8,10 +8,13 @@ This is a little software written in C++ while learning. I always really liked *
 ## Modules
 
 Here are the modules currently available in `c2p2`:
-
+#### Encoding/Decoding
 * **`rot13`** (`encode`) – Simple ROT13 cipher transformation
 * **`base64`** (`encode`, `decode`) – Standard Base64 encoding and decoding
-* **`hex`** (`encode`, `decode`) – Hexadecimal converter with optional parameters (`uppercase=true`, `delimiter=" "`)
+* **`hex`** (`encode`, `decode`) – Hexadecimal converter with optional parameters (`--uppercase=true`, `--delimiter=" "`)
+* **`url`** (`encode`, `decode`) – URL encoding and decoding
+* **`html`** (`encode`, `decode`) – HTML entity encoding and decoding
+#### Encryption/Decryption
 * **`caesar`** (`encrypt`, `decrypt`) – Classic Caesar cipher with configurable `shift` parameter (default: 3)
 
 *More modules (like Enigma!) are coming soon :D*

@@ -10,6 +10,16 @@ namespace c2p2::modules {
             return {"encode", "decode"};
         }
 
+        [[nodiscard]] DataBuffer help_text() const override {
+            const std::string help = "Base64 Module:\n"
+                               "Actions:\n"
+                               "  encode: Encode input data to Base64.\n"
+                               "  decode: Decode Base64 input data.\n"
+                               "Parameters:\n"
+                               "  None for encode/decode.\n";
+            return string_to_databuffer(help);
+        }
+
         [[nodiscard]] std::expected<DataBuffer, ModuleError> execute(
             const std::string& action,
             const DataBuffer& input,

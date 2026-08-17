@@ -215,13 +215,23 @@ int run() {
                 output_text = "Error: " + res.error().message;
             }
         } else if (cmd == "help") {
-            output_text = "Available commands:\n"
-                          "- add <id> <module> <action> [params...] -> Add a new module to the pipeline\n"
-                          "- remove <id> -> Remove a module from the pipeline\n"
-                          "- list -> List all modules in the pipeline\n"
-                          "- clear -> Clear the entire pipeline\n"
-                          "- run [--input-file <path>] [--output-file <path>] [\"text\"] -> Run the pipeline with specified input\n"
-                          "- help -> Show this help message";
+            std::string module;
+            if (ss >> module) {
+                auto mod = Registry::instance().create(module);
+                if (mod) {
+                    output_text = buffer_to_safe_string(mod->help_text());
+                } else {
+                    output_text = "Error: unknown module";
+                }
+            } else {
+                output_text = "Available commands:\n"
+                              "- add <id> <module> <action> [params...] -> Add a new module to the pipeline\n"
+                              "- remove <id> -> Remove a module from the pipeline\n"
+                              "- list -> List all modules in the pipeline\n"
+                              "- clear -> Clear the entire pipeline\n"
+                              "- run [--input-file <path>] [--output-file <path>] [\"text\"] -> Run the pipeline with specified input\n"
+                              "- help [module] -> Show help message";
+            }
         } else {
             output_text = " Unknown command: " + cmd;
         }

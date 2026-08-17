@@ -3,9 +3,9 @@
 #include <format>
 
 namespace c2p2::modules {
+    DataBuffer output;
 
     static DataBuffer transform_caesar(const DataBuffer& input, int shift) {
-        DataBuffer output;
         output.reserve(input.size());
 
         shift = (shift % 26 + 26) % 26;
@@ -41,16 +41,14 @@ namespace c2p2::modules {
         }
 
         if (action == "encrypt") {
-            return transform_caesar(input, shift);
+            output = transform_caesar(input, shift);
         }
 
         if (action == "decrypt") {
-            return transform_caesar(input, -shift);
+            output = transform_caesar(input, -shift);
         }
 
-        return std::unexpected(ModuleError{
-            .message = std::format("Unsupported action '{}' for Caesar module", action)
-        });
+        return output;
     }
 
 }

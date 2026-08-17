@@ -3,21 +3,20 @@
 
 namespace c2p2::modules {
 
-    class Hex : public Module {
+    class HtmlEntities : public Module {
     public:
-        [[nodiscard]] std::string get_id() const override { return "hex"; }
+        [[nodiscard]] std::string get_id() const override { return "html-entities"; }
         [[nodiscard]] std::vector<std::string> get_supported_actions() const override {
             return {"encode", "decode"};
         }
 
         [[nodiscard]] DataBuffer help_text() const override {
-            const std::string help = "Hex Module:\n"
+            const std::string help = "HTML Entities Module:\n"
                                "Actions:\n"
-                               "  encode: Encode input data to hexadecimal representation.\n"
-                               "  decode: Decode hexadecimal input data.\n"
+                               "  encode: Encode input data to HTML entities.\n"
+                               "  decode: Decode HTML entities input data.\n"
                                "Parameters:\n"
-                               "  --uppercase: (optional) Set to 'true' or '1' to use uppercase letters in the output. Default is lowercase.\n"
-                               "  --delimiter: (optional) Specify a string to insert between each byte in the output. Default is no delimiter.\n";
+                               "  --format: (optional) Specify the format of the output. Options are 0 (named), 1 (decimal), or 2 (hexadecimal). Default is 0.\n";
             return string_to_databuffer(help);
         }
 
