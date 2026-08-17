@@ -3,9 +3,8 @@
 #include <format>
 
 namespace c2p2::modules {
-    DataBuffer output;
-
     static DataBuffer transform_caesar(const DataBuffer& input, int shift) {
+        DataBuffer output;
         output.reserve(input.size());
 
         shift = (shift % 26 + 26) % 26;
@@ -30,6 +29,7 @@ namespace c2p2::modules {
         const DataBuffer& input,
         const ParamsMap& params
     ) const {
+        DataBuffer output;
         int shift = 3;
 
         if (auto it = params.find("--shift"); it != params.end()) {

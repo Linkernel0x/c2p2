@@ -15,7 +15,8 @@ Here are the modules currently available in `c2p2`:
 * **`url`** (`encode`, `decode`) – URL encoding and decoding
 * **`html`** (`encode`, `decode`) – HTML entity encoding and decoding
 #### Encryption/Decryption
-* **`caesar`** (`encrypt`, `decrypt`) – Classic Caesar cipher with configurable `shift` parameter (default: 3)
+* **`caesar`** (`encrypt`, `decrypt`) – Classic Caesar cipher with configurable `--shift` parameter (default: 3)
+* **`vigenere`** (`encrypt`, `decrypt`) – Vigenère cipher with configurable `--key` parameter
 
 *More modules (like Enigma!) are coming soon :D*
 

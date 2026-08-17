@@ -5,7 +5,7 @@ namespace c2p2::modules {
 
     class HtmlEntities : public Module {
     public:
-        [[nodiscard]] std::string get_id() const override { return "html-entities"; }
+        [[nodiscard]] std::string get_id() const override { return "html"; }
         [[nodiscard]] std::vector<std::string> get_supported_actions() const override {
             return {"encode", "decode"};
         }

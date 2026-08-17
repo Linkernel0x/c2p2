@@ -1,4 +1,4 @@
-#include "htmlEntities.hpp"
+#include "html.hpp"
 #include <format>
 #include <cstddef> // Per std::byte
 #include <string_view>
