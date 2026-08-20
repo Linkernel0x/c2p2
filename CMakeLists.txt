@@ -16,7 +16,12 @@ FetchContent_Declare(ftxui
         GIT_REPOSITORY https://github.com/ArthurSonzogni/FTXUI
         GIT_TAG main
 )
+FetchContent_Declare(
+        json
+        URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
+)
 FetchContent_MakeAvailable(ftxui)
+FetchContent_MakeAvailable(json)
 
 add_executable(c2p2
         main.cpp
@@ -27,3 +32,4 @@ add_executable(c2p2
 )
 
 target_link_libraries(c2p2 PRIVATE ftxui::screen ftxui::dom ftxui::component)
+target_link_libraries(c2p2 PRIVATE nlohmann_json::nlohmann_json)

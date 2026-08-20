@@ -10,6 +10,7 @@
 #include <format>
 #include <fstream>
 #include <algorithm>
+#include <cctype>
 
 namespace c2p2::tui {
 
@@ -19,7 +20,7 @@ static std::string buffer_to_safe_string(const DataBuffer& buffer) {
     std::string safe_str;
     safe_str.reserve(buffer.size());
     for (std::byte b : buffer) {
-        unsigned char c = static_cast<unsigned char>(b);
+        auto c = static_cast<unsigned char>(b);
         if (std::isprint(c) || c == '\n' || c == '\t' || c == '\r') {
             safe_str += static_cast<char>(c);
         } else {
@@ -44,9 +45,18 @@ static DataBuffer read_file(const std::string& filepath) {
 static bool write_file(const std::string& filepath, const DataBuffer& buffer) {
     std::ofstream file(filepath, std::ios::binary);
     if (!file) return false;
-    file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
+    file.write(reinterpret_cast<const char*>(buffer.data()), static_cast<std::streamsize>(buffer.size()));
     return true;
 }
+
+static std::string invert_action(const std::string& action) {
+    if (action == "encode") return "decode";
+    if (action == "decode") return "encode";
+    if (action == "encrypt") return "decrypt";
+    if (action == "decrypt") return "encrypt";
+    return action;
+}
+
 
 int run() {
     auto screen = ScreenInteractive::Fullscreen();
@@ -56,8 +66,31 @@ int run() {
     std::vector<std::string> pipeline_entries;
     int selected_pipeline_index = 0;
     std::string command_input;
-    std::string input_text = "Welcome to c2p2!";
+    std::string input_text = "Welcome to c2p2! To begin run 'help' for a list of commands and ' list' to see available modules.";
     std::string output_text;
+
+    auto append_buffer_from_text = [](const std::string& text) {
+        DataBuffer buffer;
+        buffer.reserve(text.size());
+        for (unsigned char c : text) {
+            buffer.push_back(static_cast<std::byte>(c));
+        }
+        return buffer;
+    };
+
+    auto refresh_pipeline_menu = [&]() {
+        pipeline_entries.clear();
+        const auto& steps = pipeline.get_steps();
+        for (const auto& step : steps) {
+            std::string line = std::format("[{}] {} {}", step.instance_id, step.module->get_id(), step.action);
+            pipeline_entries.emplace_back(std::move(line));
+        }
+        if (pipeline_entries.empty()) {
+            pipeline_entries.push_back("< Empty Pipeline >");
+        }
+    };
+
+    refresh_pipeline_menu();
 
     auto execute_pipeline = [&]() {
         if (pipeline.get_steps().empty()) {
@@ -65,11 +98,7 @@ int run() {
             return;
         }
 
-        DataBuffer in_buffer;
-        in_buffer.reserve(input_text.size());
-        for (char c : input_text) {
-            in_buffer.push_back(static_cast<std::byte>(c));
-        }
+        auto in_buffer = append_buffer_from_text(input_text);
 
         auto res = pipeline.run(in_buffer);
         if (res) {
@@ -80,13 +109,7 @@ int run() {
     };
 
     auto sync_pipeline_ui = [&]() {
-        pipeline_entries.clear();
-        const auto& steps = pipeline.get_steps();
-        for (size_t i = 0; i < steps.size(); ++i) {
-            pipeline_entries.push_back(
-                std::format("{}. [{}] {} ({})", i + 1, steps[i].instance_id, steps[i].module->get_id(), steps[i].action)
-            );
-        }
+        refresh_pipeline_menu();
         if (selected_pipeline_index >= static_cast<int>(pipeline_entries.size())) {
             selected_pipeline_index = std::max(0, static_cast<int>(pipeline_entries.size()) - 1);
         }
@@ -145,26 +168,39 @@ int run() {
                 } else {
                     output_text = "Error: Module not found!";
                 }
+            } else {
+                output_text = "Error: Usage: add <id> <module> <action> [key=value ...]";
             }
         }
         else if (cmd == "remove") {
             std::string id;
             if (ss >> id) {
-                pipeline.remove_step(id);
+                if (!pipeline.remove_step(id)) {
+                    output_text = "Error: step not found!";
+                }
                 sync_pipeline_ui();
+            } else {
+                output_text = "Error: Usage: remove <id>";
             }
         }
         else if (cmd == "list") {
             output_text = "Modules:\n";
-            for (const auto& [id, _] : Registry::instance().get_all()) {
+            const auto& modules = Registry::instance().get_all();
+            if (modules.empty()) {
+                output_text += "<no modules registered>\n";
+            }
+            for (const auto& [id, _] : modules) {
                 output_text += "- " + id;
 
                 auto temp_mod = Registry::instance().create(id);
                 if (temp_mod) {
                     auto actions = temp_mod->get_supported_actions();
                     output_text += "  ·  ";
-                    for (const auto& action : actions) {
-                        output_text += action + ", ";
+                    for (size_t i = 0; i < actions.size(); ++i) {
+                        output_text += actions[i];
+                        if (i + 1 < actions.size()) {
+                            output_text += ", ";
+                        }
                     }
                     output_text += '\n';
                 }
@@ -174,7 +210,8 @@ int run() {
             pipeline.clear();
             sync_pipeline_ui();
         }
-        else if (cmd == "run") {
+        else if (cmd == "run")
+        {
             std::string token;
             DataBuffer in_buffer;
             std::string output_file_path;
@@ -185,7 +222,11 @@ int run() {
                     std::string path;
                     if (ss >> path) in_buffer = read_file(path);
                 } else if (token == "--output-file") {
-                    ss >> output_file_path;
+                    if (!(ss >> output_file_path)) {
+                        output_text = "Error: missing output file path";
+                        command_input.clear();
+                        return;
+                    }
                 } else {
                     if (!inline_input.empty()) inline_input += ' ';
                     inline_input += token;
@@ -194,10 +235,7 @@ int run() {
 
             if (in_buffer.empty()) {
                 std::string text_to_use = inline_input.empty() ? input_text : inline_input;
-                in_buffer.reserve(text_to_use.size());
-                for (char c : text_to_use) {
-                    in_buffer.push_back(static_cast<std::byte>(c));
-                }
+                in_buffer = append_buffer_from_text(text_to_use);
             }
 
             auto res = pipeline.run(in_buffer);
@@ -214,6 +252,31 @@ int run() {
             } else {
                 output_text = "Error: " + res.error().message;
             }
+        } else if (cmd == "export") {
+            std::string path;
+            if (ss >> path) {
+                pipeline.export_to_json(path);
+                output_text = "Pipeline exported to " + path;
+            } else {
+                output_text = "Error: Please provide a file path for export.";
+            }
+        } else if (cmd == "import") {
+            std::string path;
+            if (ss >> path) {
+                pipeline = Pipeline::import_from_json(path);
+                sync_pipeline_ui();
+                output_text = "Pipeline imported from " + path;
+            } else {
+                output_text = "Error: Please provide a file path for import.";
+            }
+        } else if (cmd == "reverse") {
+            auto steps = pipeline.get_steps();
+            std::reverse(steps.begin(), steps.end());
+            pipeline.clear();
+            for (auto& s : steps) {
+                pipeline.add_step(s.instance_id, s.module, invert_action(s.action), s.params);
+            }
+            sync_pipeline_ui();
         } else if (cmd == "help") {
             std::string module;
             if (ss >> module) {
@@ -230,6 +293,8 @@ int run() {
                               "- list -> List all modules in the pipeline\n"
                               "- clear -> Clear the entire pipeline\n"
                               "- run [--input-file <path>] [--output-file <path>] [\"text\"] -> Run the pipeline with specified input\n"
+                              "- export <path> -> Export the pipeline to a JSON file\n"
+                              "- import <path> -> Import a pipeline from a JSON file\n"
                               "- help [module] -> Show help message";
             }
         } else {

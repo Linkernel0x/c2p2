@@ -3,20 +3,20 @@
 
 namespace c2p2::modules {
 
-    class Caesar : public Module {
+    class Rot47 : public Module {
     public:
-        [[nodiscard]] std::string get_id() const override { return "caesar"; }
+        [[nodiscard]] std::string get_id() const override { return "rot47"; }
         [[nodiscard]] std::vector<std::string> get_supported_actions() const override {
             return {"encrypt", "decrypt"};
         }
 
         [[nodiscard]] DataBuffer help_text() const override {
-            const std::string help = "Caesar Cipher Module:\n"
+            const std::string help = "ROT47 Module:\n"
                                "Actions:\n"
-                               "  encrypt: Encrypt input data using Caesar cipher.\n"
-                               "  decrypt: Decrypt Caesar cipher input data.\n"
+                               "  encode: Encode input data using ROT47.\n"
+                               "  decode: Decode ROT47 input data.\n"
                                "Parameters:\n"
-                               "  --shift: (optional) Specify the shift value for the cipher. Default is 3.\n";
+                               "  None for encode/decode.\n";
             return string_to_databuffer(help);
         }
 

@@ -1,5 +1,8 @@
 #include "core/pipeline.hpp"
 #include <algorithm>
+#include <fstream>
+#include <nlohmann/json.hpp>
+#include <core/registry.hpp>
 
 namespace c2p2
 {
@@ -28,6 +31,45 @@ namespace c2p2
 
     void Pipeline::clear() {
         steps_.clear();
+    }
+
+    void Pipeline::export_to_json(const std::string& file_path) const {
+        nlohmann::json j;
+        for (const auto& step : steps_) {
+            j.push_back({
+                {"instance_id", step.instance_id},
+                {"module_name", step.module->get_id()},
+                {"action", step.action},
+                {"params", step.params}
+            });
+        }
+
+        std::ofstream file(file_path);
+        if (file.is_open()) {
+            file << j.dump(4);
+            file.close();
+        }
+    }
+
+    Pipeline Pipeline::import_from_json(const std::string& file_path) {
+        Pipeline pipeline;
+        std::ifstream file(file_path);
+        nlohmann::json j;
+        file >> j;
+
+        for (const auto& step_json : j) {
+            auto instance_id = step_json["instance_id"].get<std::string>();
+            auto module_name = step_json["module_name"].get<std::string>();
+            auto action = step_json["action"].get<std::string>();
+            auto params = step_json["params"].get<ParamsMap>();
+
+            auto module = Registry::instance().create(module_name);
+            if (!module) continue;
+
+            pipeline.add_step(instance_id, std::move(module), std::move(action), std::move(params));
+        }
+
+        return pipeline;
     }
 
     const std::vector<PipelineStep>& Pipeline::get_steps() const {

@@ -1,8 +1,7 @@
-#include "caesar.hpp"
-#include <string>
-#include <format>
+#include "rot13.hpp"
 
-namespace c2p2::modules {
+namespace c2p2::modules
+{
     static DataBuffer transform_caesar(const DataBuffer& input, int shift) {
         DataBuffer output;
         output.reserve(input.size());
@@ -11,26 +10,24 @@ namespace c2p2::modules {
 
         for (std::byte b : input) {
             char c = static_cast<char>(b);
-
             if (c >= 'a' && c <= 'z') {
-                c = static_cast<char>('a' + (c - 'a' + shift) % 26);
+                c = 'a' + (c - 'a' + shift) % 26;
             } else if (c >= 'A' && c <= 'Z') {
-                c = static_cast<char>('A' + (c - 'A' + shift) % 26);
+                c = 'A' + (c - 'A' + shift) % 26;
             }
-
             output.push_back(static_cast<std::byte>(c));
         }
 
         return output;
     }
 
-    std::expected<DataBuffer, ModuleError> Caesar::execute(
+    std::expected<DataBuffer, ModuleError> Rot13::execute(
         const std::string& action,
         const DataBuffer& input,
         const ParamsMap& params
-    ) const {
+        ) const {
         DataBuffer output;
-        int shift = 3;
+        int shift = 13;
 
         if (auto it = params.find("--shift"); it != params.end()) {
             try {
@@ -50,5 +47,4 @@ namespace c2p2::modules {
 
         return output;
     }
-
 }

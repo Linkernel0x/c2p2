@@ -24,6 +24,10 @@ namespace c2p2 {
 
         void clear();
 
+        void export_to_json(const std::string& file_path) const;
+
+        static Pipeline import_from_json(const std::string& file_path) ;
+
         [[nodiscard]] const std::vector<PipelineStep>& get_steps() const;
 
         [[nodiscard]] std::expected<DataBuffer, ModuleError> run(const DataBuffer& initial_input) const;

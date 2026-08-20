@@ -7,7 +7,7 @@ namespace c2p2::modules {
     public:
         [[nodiscard]] std::string get_id() const override { return "rot13"; }
         [[nodiscard]] std::vector<std::string> get_supported_actions() const override {
-            return {"encode", "decode"};
+            return {"encrypt", "decrypt"};
         }
 
         [[nodiscard]] DataBuffer help_text() const override {
