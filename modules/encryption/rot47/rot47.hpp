@@ -13,10 +13,10 @@ namespace c2p2::modules {
         [[nodiscard]] DataBuffer help_text() const override {
             const std::string help = "ROT47 Module:\n"
                                "Actions:\n"
-                               "  encode: Encode input data using ROT47.\n"
-                               "  decode: Decode ROT47 input data.\n"
+                               "  encrypt: Encrypt input data using ROT47.\n"
+                               "  decrypt: Decrypt ROT47 input data.\n"
                                "Parameters:\n"
-                               "  None for encode/decode.\n";
+                               "  --shift=<number>: Specify the shift value (default: 47).\n";
             return string_to_databuffer(help);
         }
 

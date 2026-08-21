@@ -16,8 +16,8 @@ namespace c2p2::modules {
                                "  encode: Encode input data to hexadecimal representation.\n"
                                "  decode: Decode hexadecimal input data.\n"
                                "Parameters:\n"
-                               "  --uppercase: (optional) Set to 'true' or '1' to use uppercase letters in the output. Default is lowercase.\n"
-                               "  --delimiter: (optional) Specify a string to insert between each byte in the output. Default is no delimiter.\n";
+                               "  --uppercase=<bool>: (optional) Set to 'true' or '1' to use uppercase letters in the output. (Default is lowercase).\n"
+                               "  --delimiter=<string>: (optional) Specify a string to insert between each byte in the output. (Default is no delimiter).\n";
             return string_to_databuffer(help);
         }
 

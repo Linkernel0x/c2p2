@@ -16,7 +16,7 @@ namespace c2p2::modules {
                                "  encode: Encode input data to HTML entities.\n"
                                "  decode: Decode HTML entities input data.\n"
                                "Parameters:\n"
-                               "  --format: (optional) Specify the format of the output. Options are 0 (named), 1 (decimal), or 2 (hexadecimal). Default is 0.\n";
+                               "  --format=<int>: Specify the format of the output. Options are 0 (named), 1 (decimal), or 2 (hexadecimal). (Default is 0).\n";
             return string_to_databuffer(help);
         }
 

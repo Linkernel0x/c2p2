@@ -8,6 +8,8 @@
 namespace c2p2::cli {
 
 static std::string invert_action(const std::string& action) {
+    if (action == "compress") return "decompress";
+    if (action == "decompress") return "compress";
     if (action == "encode") return "decode";
     if (action == "decode") return "encode";
     if (action == "encrypt") return "decrypt";

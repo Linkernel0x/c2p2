@@ -9,14 +9,20 @@ This is a little software written in C++ while learning. I always really liked *
 
 Here are the modules currently available in `c2p2`:
 #### Encoding/Decoding
-* **`rot13`** (`encode`) – Simple ROT13 cipher transformation
 * **`base64`** (`encode`, `decode`) – Standard Base64 encoding and decoding
 * **`hex`** (`encode`, `decode`) – Hexadecimal converter with optional parameters (`--uppercase=true`, `--delimiter=" "`)
 * **`url`** (`encode`, `decode`) – URL encoding and decoding
 * **`html`** (`encode`, `decode`) – HTML entity encoding and decoding
+* **`binary`** (`encode`, `decode`) – Binary converter with optional parameter `--delimiter`
 #### Encryption/Decryption
-* **`caesar`** (`encrypt`, `decrypt`) – Classic Caesar cipher with configurable `--shift` parameter (default: 3)
+* **`rot13`** (`encrypt`, `decrypt`) – Simple ROT13 cipher transformation with configurable `--shift` parameter (default: 13)
+* **`rot47`** (`encrypt`, `decrypt`) – Simple ROT47 cipher transformation with configurable `--shift` parameter (default: 47)
+* **`rot8000`** (`encrypt`, `decrypt`) – Simple ROT8000 cipher transformation
+* **`caesar_box`** (`encrypt`, `decrypt`) – Caesar Box transposition cipher with configurable `--length` parameter (default: 3)
 * **`vigenere`** (`encrypt`, `decrypt`) – Vigenère cipher with configurable `--key` parameter
+#### Files
+* **`archive`** (`compress`, `decompress`) – Compress (in a specific `--format`, with configurable `--filename`) and decompress files. Supported formats: `zip|xar|ar|ar.svr4|shar|shar.dump|gz|gzip|bz2|bzip2|xz|zstd|lz4|lzip|lzma|lzo|z|uu|uuencode|grz|tar.gz|tgz|tar.bz2|tbz2|tar.xz|txz|tar.zst|tzst|tar.lz4|tlz4|tar.lz|tar.lzma|tlz|tar.lzo|tar.Z|cpio.gz|cpio.xz|cpio.zst`
+* coming soon: **`exif`** (`get`, `remove`, `set`) – Read and write EXIF metadata from/to image files
 
 *More modules (like Enigma!) are coming soon :D*
 
@@ -29,8 +35,8 @@ You can use the command line interface to quickly pass data through a module:
 
 ```bash
 # Examples
-./c2p2 rot13 encode "Hello World"
-./c2p2 caesar encrypt --shift=5 "Secret Message"
+./c2p2 binary encode "Hello World"
+./c2p2 rot13 encrypt --shift=5 "Secret Message"
 ./c2p2 hex encode "Data to Hex"
 ./c2p2 base64 decode "SGVsbG8="
 

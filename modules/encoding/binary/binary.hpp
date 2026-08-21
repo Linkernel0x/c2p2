@@ -16,7 +16,7 @@ namespace c2p2::modules {
                                "  encode: Encode input data to binary representation.\n"
                                "  decode: Decode binary input data.\n"
                                "Parameters:\n"
-                               "  --delimiter : (optional) Specify a string to insert between each byte in the output. Default is space.\n";
+                               "  --delimiter=<string>: Specify a string to insert between each byte in the output. (Default is space).\n";
             return string_to_databuffer(help);
         }
 

@@ -16,7 +16,7 @@ namespace c2p2::modules {
                                "  encrypt: Encrypt input data using Vigenère cipher.\n"
                                "  decrypt: Decrypt Vigenère cipher input data.\n"
                                "Parameters:\n"
-                               "  --key: Specify the key value for the cipher.\n";
+                               "  --key=<string>: Specify the key value for the cipher.\n";
             return string_to_databuffer(help);
         }
 

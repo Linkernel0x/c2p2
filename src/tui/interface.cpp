@@ -50,6 +50,8 @@ static bool write_file(const std::string& filepath, const DataBuffer& buffer) {
 }
 
 static std::string invert_action(const std::string& action) {
+    if (action == "compress") return "decompress";
+    if (action == "decompress") return "compress";
     if (action == "encode") return "decode";
     if (action == "decode") return "encode";
     if (action == "encrypt") return "decrypt";

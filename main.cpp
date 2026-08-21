@@ -15,9 +15,13 @@
 #include "encryption/rot8000/rot8000.hpp"
 #include "encryption/vigenere/vigenere.hpp"
 
+#include "files/archive/archive.hpp"
+
 
 static void register_all_modules() {
     auto& reg = c2p2::Registry::instance();
+    reg.register_module("archive", []() { return std::make_shared<c2p2::modules::Archive>(); });
+
     reg.register_module("base64", []() { return std::make_shared<c2p2::modules::Base64>(); });
     reg.register_module("hex", []() { return std::make_shared<c2p2::modules::Hex>(); });
     reg.register_module("binary", []() { return std::make_shared<c2p2::modules::Binary>(); });
