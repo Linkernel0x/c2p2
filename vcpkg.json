@@ -1,0 +1,11 @@
+{
+  "name": "c2p2",
+  "version-string": "1.0",
+  "dependencies": [
+    "ftxui",
+    "nlohmann-json",
+    "libarchive",
+    "exiv2",
+    "openssl"
+  ]
+}

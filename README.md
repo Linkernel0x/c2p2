@@ -22,7 +22,8 @@ Here are the modules currently available in `c2p2`:
 * **`vigenere`** (`encrypt`, `decrypt`) – Vigenère cipher with configurable `--key` parameter
 #### Files
 * **`archive`** (`compress`, `decompress`) – Compress (in a specific `--format`, with configurable `--filename`) and decompress files. Supported formats: `zip|xar|ar|ar.svr4|shar|shar.dump|gz|gzip|bz2|bzip2|xz|zstd|lz4|lzip|lzma|lzo|z|uu|uuencode|grz|tar.gz|tgz|tar.bz2|tbz2|tar.xz|txz|tar.zst|tzst|tar.lz4|tlz4|tar.lz|tar.lzma|tlz|tar.lzo|tar.Z|cpio.gz|cpio.xz|cpio.zst`
-* coming soon: **`exif`** (`get`, `remove`, `set`) – Read and write EXIF metadata from/to image files
+#### Hashing
+* **`md`** (`hash`, `check`) – Hashing with MD4 and MD5 (set in `--md`, default: 5) and configurable `--format` parameter
 
 *More modules (like Enigma!) are coming soon :D*
 

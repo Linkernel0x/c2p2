@@ -11,32 +11,30 @@ file(GLOB_RECURSE CLI_SOURCES "src/cli/*.cpp")
 file(GLOB_RECURSE TUI_SOURCES "src/tui/*.cpp")
 file(GLOB_RECURSE MODULE_SOURCES "modules/*.cpp")
 
-include(FetchContent)
-set(ENABLE_TEST OFF CACHE BOOL "" FORCE)
-set(ENABLE_TESTING OFF CACHE BOOL "" FORCE)
-set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+#include(FetchContent)
+#set(ENABLE_TEST OFF CACHE BOOL "" FORCE)
+#set(ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+#set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+#
+## LibArchive
+#set(ENABLE_TAR OFF CACHE BOOL "" FORCE)
+#set(ENABLE_CPIO OFF CACHE BOOL "" FORCE)
+#set(ENABLE_CAT OFF CACHE BOOL "" FORCE)
+#set(ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+#
+## Exiv2
+#set(EXIV2_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
+#set(EXIV2_BUILD_UNIT_TESTS OFF CACHE BOOL "" FORCE)
+#set(EXIV2_ENABLE_BROTLI OFF CACHE BOOL "" FORCE)
+#set(EXIV2_ENABLE_WEBP OFF CACHE BOOL "" FORCE)
+#set(EXIV2_ENABLE_PNG OFF CACHE BOOL "" FORCE)
+#set(EXIV2_ENABLE_INIH OFF CACHE BOOL "" FORCE)
 
-# LibArchive
-set(ENABLE_TAR OFF CACHE BOOL "" FORCE)
-set(ENABLE_CPIO OFF CACHE BOOL "" FORCE)
-set(ENABLE_CAT OFF CACHE BOOL "" FORCE)
-set(ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
-
-# Exiv2
-set(EXIV2_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
-set(EXIV2_BUILD_UNIT_TESTS OFF CACHE BOOL "" FORCE)
-set(EXIV2_ENABLE_BROTLI OFF CACHE BOOL "" FORCE)
-set(EXIV2_ENABLE_WEBP OFF CACHE BOOL "" FORCE)
-set(EXIV2_ENABLE_PNG OFF CACHE BOOL "" FORCE)
-set(EXIV2_ENABLE_INIH OFF CACHE BOOL "" FORCE)
-
-# dependencies
-FetchContent_Declare(ftxui GIT_REPOSITORY https://github.com/ArthurSonzogni/FTXUI GIT_TAG main)
-FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz)
-FetchContent_Declare(Exiv2 GIT_REPOSITORY https://github.com/Exiv2/exiv2 GIT_TAG v0.28.8)
-FetchContent_Declare(LibArchive GIT_REPOSITORY https://github.com/libarchive/libarchive GIT_TAG v3.8.9)
-
-FetchContent_MakeAvailable(ftxui json LibArchive Exiv2)
+find_package(ftxui CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
+find_package(LibArchive REQUIRED)
+find_package(exiv2 CONFIG REQUIRED)
+find_package(OpenSSL REQUIRED)
 
 # executable
 add_executable(c2p2
@@ -69,10 +67,12 @@ endif()
 
 # Link
 target_link_libraries(c2p2 PRIVATE
-        archive_static
+        LibArchive::LibArchive
         exiv2lib
         ftxui::screen
         ftxui::dom
         ftxui::component
         nlohmann_json::nlohmann_json
+        OpenSSL::SSL
+        OpenSSL::Crypto
 )
