@@ -16,7 +16,8 @@ namespace c2p2::modules {
                                "  hash: Calculate the MD hash of the input data.\n"
                                "  check: Verify the MD hash of the input data against a provided hash. In case of mismatch returns an error.\n"
                                "Parameters:\n"
-                               "  --variant=<string>: Specify the MD variant (must be 4 or 5). Default: 5.\n";
+                               "  --variant=<string>: Specify the MD variant (must be 4 or 5). Default: 5.\n"
+                               "  --format=<string>: Specify the output format (hex or binary). Default: hex.\n";
             return string_to_databuffer(help);
         }
 

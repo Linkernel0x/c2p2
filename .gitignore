@@ -64,9 +64,10 @@ vcpkg_installed/
 # debug information files
 *.dwo
 
-# test output & cache
+# test output, cache & docs
 Testing/
 .cache/
+c2p2.wiki/
 
 # IDE
 .idea/

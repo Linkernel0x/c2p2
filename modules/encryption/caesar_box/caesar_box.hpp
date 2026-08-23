@@ -16,7 +16,7 @@ namespace c2p2::modules {
                                      "  encrypt: Encrypts the input using the Caesar Box cipher.\n"
                                      "  decrypt: Decrypts the input using the Caesar Box cipher.\n"
                                      "Parameters:\n"
-                                     "  --length=<int>: The length of the box (default: 3).\n";
+                                     "  --length=<int>: The length of the box (default: 5).\n";
             return string_to_databuffer(help);
         }
 

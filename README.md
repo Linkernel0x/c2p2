@@ -20,12 +20,14 @@ Here are the modules currently available in `c2p2`:
 * **`rot8000`** (`encrypt`, `decrypt`) – Simple ROT8000 cipher transformation
 * **`caesar_box`** (`encrypt`, `decrypt`) – Caesar Box transposition cipher with configurable `--length` parameter (default: 3)
 * **`vigenere`** (`encrypt`, `decrypt`) – Vigenère cipher with configurable `--key` parameter
+* **`enigma`** (`process`) – Enigma machine simulation with `--config` parameter for machine settings
 #### Files
 * **`archive`** (`compress`, `decompress`) – Compress (in a specific `--format`, with configurable `--filename`) and decompress files. Supported formats: `zip|xar|ar|ar.svr4|shar|shar.dump|gz|gzip|bz2|bzip2|xz|zstd|lz4|lzip|lzma|lzo|z|uu|uuencode|grz|tar.gz|tgz|tar.bz2|tbz2|tar.xz|txz|tar.zst|tzst|tar.lz4|tlz4|tar.lz|tar.lzma|tlz|tar.lzo|tar.Z|cpio.gz|cpio.xz|cpio.zst`
 #### Hashing
 * **`md`** (`hash`, `check`) – Hashing with MD4 and MD5 (set in `--md`, default: 5) and configurable `--format` parameter
+* **`sha`** (`hash`, `check`) – Hashing with different SHA variants (set in `--sha`, default: 256) and configurable `--variant` parameter
 
-*More modules (like Enigma!) are coming soon :D*
+*More modules are coming soon :D*
 
 ## CLI Usage
 

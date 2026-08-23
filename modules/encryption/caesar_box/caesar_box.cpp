@@ -24,7 +24,7 @@ namespace c2p2::modules {
         const ParamsMap& params
     ) const {
         DataBuffer output;
-        int length = 3;
+        int length = 5;
         const auto orig_cols = static_cast<size_t>(length);
         const size_t orig_rows = (input.size() + orig_cols - 1) / orig_cols;
 

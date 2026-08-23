@@ -15,7 +15,7 @@ namespace c2p2::modules {
         std::string check_hash;
         std::string format = "hex";
 
-        if (const auto it = params.find("--md"); it != params.end()) {
+        if (const auto it = params.find("--variant"); it != params.end()) {
             try {
                 if (it->second != "4" && it->second != "5") {
                     return std::unexpected(ModuleError{.message = "'md' parameter is required (must be 4 or 5)"});
@@ -81,7 +81,7 @@ namespace c2p2::modules {
 
         if (action == "check") {
             if (hash_hex == check_hash) {
-                return string_to_databuffer(hash_hex);
+                return input;
             }
             return std::unexpected(ModuleError{.message = std::format("Hash check failed. Computed: {}, Provided: {}", hash_hex, check_hash)});
         }
