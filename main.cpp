@@ -8,6 +8,7 @@
 #include "encoding/binary/binary.hpp"
 #include "encoding/html/html.hpp"
 #include "encoding/url/url.hpp"
+#include "encryption/aes/aes.hpp"
 
 #include "encryption/rot13/rot13.hpp"
 #include "encryption/caesar_box/caesar_box.hpp"
@@ -30,12 +31,12 @@ static void register_all_modules() {
     reg.register_module("rot47", []() { return std::make_shared<c2p2::modules::Rot47>(); });
     reg.register_module("rot8000", []() { return std::make_shared<c2p2::modules::Rot8000>(); });
     reg.register_module("enigma", []() { return std::make_shared<c2p2::modules::Enigma>(); });
+    reg.register_module("aes", []() { return std::make_shared<c2p2::modules::Aes>(); });
 
     reg.register_module("md", []() { return std::make_shared<c2p2::modules::Md>(); });
     reg.register_module("sha", []() { return std::make_shared<c2p2::modules::Sha>(); });
 
     reg.register_module("archive", []() { return std::make_shared<c2p2::modules::Archive>(); });
-    reg.register_module("exif", []() { return std::make_shared<c2p2::modules::Exif>(); });
 
     reg.register_module("base64", []() { return std::make_shared<c2p2::modules::Base64>(); });
     reg.register_module("hex", []() { return std::make_shared<c2p2::modules::Hex>(); });
