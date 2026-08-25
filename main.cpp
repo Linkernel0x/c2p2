@@ -37,6 +37,7 @@ static void register_all_modules() {
     reg.register_module("sha", []() { return std::make_shared<c2p2::modules::Sha>(); });
 
     reg.register_module("archive", []() { return std::make_shared<c2p2::modules::Archive>(); });
+    reg.register_module("exif", []() { return std::make_shared<c2p2::modules::Exif>(); });
 
     reg.register_module("base64", []() { return std::make_shared<c2p2::modules::Base64>(); });
     reg.register_module("hex", []() { return std::make_shared<c2p2::modules::Hex>(); });

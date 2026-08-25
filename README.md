@@ -24,6 +24,7 @@ Here are the modules currently available in `c2p2`:
 * **`aes`** (`encrypt`, `decrypt`) – AES encryption and decryption with configurable `--key`, `--iv` and `--cipher` parameters
 #### Files
 * **`archive`** (`compress`, `decompress`) – Compress (in a specific `--format`, with configurable `--filename`) and decompress files. Supported formats: [Read in the documentation](https://github.com/Linkernel0x/c2p2/wiki/Modules#archive)
+* **`exif`** (`read`, `write`) – Read and write EXIF metadata from images.
 #### Hashing
 * **`md`** (`hash`, `check`) – Hashing with MD4 and MD5 (set in `--md`, default: 5) and configurable `--format` parameter
 * **`sha`** (`hash`, `check`) – Hashing with different SHA variants (set in `--sha`, default: 256) and configurable `--variant` parameter
