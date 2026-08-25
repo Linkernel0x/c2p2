@@ -1,4 +1,5 @@
 #include "md.hpp"
+#include "helpers/openssl.hpp"
 #include <string>
 #include <format>
 #include <openssl/evp.h>
@@ -18,14 +19,14 @@ namespace c2p2::modules {
         if (const auto it = params.find("--variant"); it != params.end()) {
             try {
                 if (it->second != "4" && it->second != "5") {
-                    return std::unexpected(ModuleError{.message = "'md' parameter is required (must be 4 or 5)"});
+                    return std::unexpected(ModuleError{.message = "'variant' parameter is required (must be 4 or 5)"});
                 }
                 type = std::stoi(it->second);
             } catch (...) {
-                return std::unexpected(ModuleError{.message = "'md' parameter is required (must be 4 or 5)"});
+                return std::unexpected(ModuleError{.message = "'variant' parameter is required (must be 4 or 5)"});
             }
         } else {
-            return std::unexpected(ModuleError{.message = "'md' parameter is required (must be 4 or 5)"});
+            return std::unexpected(ModuleError{.message = "'variant' parameter is required (must be 4 or 5)"});
         }
         if (const auto it = params.find("--hash"); it != params.end()) {
             try {
@@ -47,32 +48,23 @@ namespace c2p2::modules {
             }
         }
 
-
-
-        EVP_MD_CTX* ctx = EVP_MD_CTX_new();
-        switch (type) {
+        const UniqueMdCtx ctx(EVP_MD_CTX_new());
+        switch (type) { //no need to use fetch
             case 4:
-                EVP_DigestInit_ex(ctx, EVP_md4(), nullptr);
+                EVP_DigestInit_ex(ctx.get(), EVP_md4(), nullptr);
                 break;
             case 5:
-                EVP_DigestInit_ex(ctx, EVP_md5(), nullptr);
+                EVP_DigestInit_ex(ctx.get(), EVP_md5(), nullptr);
                 break;
 
             default:
-                EVP_MD_CTX_free(ctx);
                 return std::unexpected(ModuleError{.message = "'md' parameter is required (must be 4 or 5)"});
         }
 
-        EVP_DigestUpdate(ctx, input.data(), input.size());
+        EVP_DigestUpdate(ctx.get(), input.data(), input.size());
         unsigned char result[EVP_MAX_MD_SIZE];
         unsigned int result_length = 0;
-        EVP_DigestFinal_ex(ctx, result, &result_length);
-
-        EVP_MD_CTX_free(ctx);
-
-        for(unsigned int i = 0; i < result_length; i++) {
-            output.push_back(static_cast<std::vector<std::byte>::value_type>(result[i]));
-        }
+        EVP_DigestFinal_ex(ctx.get(), result, &result_length);
 
         std::string hash_hex;
         for (unsigned int i = 0; i < result_length; ++i) {

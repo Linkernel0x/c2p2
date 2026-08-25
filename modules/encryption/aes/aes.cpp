@@ -1,4 +1,5 @@
 #include "aes.hpp"
+#include "helpers/openssl.hpp"
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <algorithm>
@@ -7,12 +8,6 @@
 //TODO: test commands
 namespace c2p2::modules
 {
-    // Custom deleters
-    struct EvpCipherDeleter { void operator()(EVP_CIPHER* ptr) const { EVP_CIPHER_free(ptr); } };
-    struct EvpCtxDeleter { void operator()(EVP_CIPHER_CTX* ptr) const { EVP_CIPHER_CTX_free(ptr); } };
-
-    using UniqueCipher = std::unique_ptr<EVP_CIPHER, EvpCipherDeleter>;
-    using UniqueCtx = std::unique_ptr<EVP_CIPHER_CTX, EvpCtxDeleter>;
 
     static std::vector<unsigned char> hex_to_bytes(const std::string& hex) {
         std::vector<unsigned char> bytes;
@@ -29,6 +24,7 @@ namespace c2p2::modules
         const DataBuffer& input,
         const ParamsMap& params
     ) const {
+        DataBuffer result;
         std::string key_str, cipher_p = "aes-256-cbc";
 
         if (auto it = params.find("--key"); it != params.end()) key_str = it->second;
@@ -37,6 +33,9 @@ namespace c2p2::modules
         if (auto it = params.find("--cipher"); it != params.end()) cipher_p = it->second;
 
         //cipher fetching managed by smart pointers
+        if (!cipher_p.contains("aes")) {
+            return std::unexpected(ModuleError{.message = "Unsupported cipher: " + cipher_p});
+        }
         UniqueCipher cipher(EVP_CIPHER_fetch(nullptr, cipher_p.c_str(), nullptr));
         if (!cipher) {
             return std::unexpected(ModuleError{.message = "Unsupported cipher: " + cipher_p});
@@ -84,7 +83,7 @@ namespace c2p2::modules
             }
         }
 
-        UniqueCtx ctx(EVP_CIPHER_CTX_new());
+        UniqueCipherCtx ctx(EVP_CIPHER_CTX_new());
         if (!ctx) {
             return std::unexpected(ModuleError{.message = "Failed to create OpenSSL CTX"});
         }
@@ -162,7 +161,6 @@ namespace c2p2::modules
 
         output.resize(total_outl);
 
-        DataBuffer result;
         result.reserve(total_outl);
         for (const auto b : output) {
             result.push_back(static_cast<std::byte>(b));

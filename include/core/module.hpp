@@ -23,6 +23,11 @@ namespace c2p2 {
             return {bytes, bytes + str.size()};
         }
 
+        static std::string databuffer_to_string(const DataBuffer& buffer) {
+            const auto* bytes = reinterpret_cast<const char*>(buffer.data());
+            return {bytes, buffer.size()};
+        }
+
         [[nodiscard]] virtual std::string get_id() const = 0;
         [[nodiscard]] virtual std::vector<std::string> get_supported_actions() const = 0;
 
