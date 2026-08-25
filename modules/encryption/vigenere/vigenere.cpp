@@ -17,12 +17,13 @@ namespace c2p2::modules {
         }
 
         size_t key_idx = 0;
-        for (size_t i = 0; i < input.size(); ++i) {
-            char c = static_cast<char>(input[i]);
+        for (auto i : input) {
+            char c = static_cast<char>(i);
 
             if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
-                int current_shift = shifts[key_idx % shifts.size()];
+                const int current_shift = shifts[key_idx % shifts.size()];
 
+                //only alphabetic characters
                 if (c >= 'a' && c <= 'z') {
                     c = static_cast<char>('a' + (c - 'a' + current_shift) % 26);
                 } else if (c >= 'A' && c <= 'Z') {
@@ -46,7 +47,7 @@ namespace c2p2::modules {
         DataBuffer output;
         std::string input_key;
 
-        if (auto it = params.find("--key"); it != params.end()) {
+        if (const auto it = params.find("--key"); it != params.end()) {
             input_key = it->second;
         }
 
@@ -57,9 +58,8 @@ namespace c2p2::modules {
         std::vector<int> key;
         key.reserve(input_key.size());
 
-        for (char c : input_key) {
-            char lower_c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-            if (lower_c >= 'a' && lower_c <= 'z') {
+        for (const char c : input_key) {
+            if (const char lower_c = static_cast<char>(std::tolower(static_cast<unsigned char>(c))); lower_c >= 'a' && lower_c <= 'z') {
                 int index = lower_c - 'a';
                 key.push_back(action == "decrypt" ? -index : index);
             }

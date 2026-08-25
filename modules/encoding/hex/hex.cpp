@@ -3,7 +3,8 @@
 #include <cctype>
 
 namespace c2p2::modules {
-    static uint8_t hex_to_nibble(char c) {
+    //converts hex to 4bit value
+    static uint8_t hex_to_nibble(const char c) {
         if (c >= '0' && c <= '9') return c - '0';
         if (c >= 'a' && c <= 'f') return c - 'a' + 10;
         if (c >= 'A' && c <= 'F') return c - 'A' + 10;
@@ -28,6 +29,7 @@ namespace c2p2::modules {
                 delimiter = it->second;
             }
 
+            //consider delimiter size
             size_t extra_space = delimiter.empty() ? 0 : (!input.empty() ? (input.size() - 1) * delimiter.size() : 0);
             output.reserve(input.size() * 2 + extra_space);
 
@@ -63,12 +65,12 @@ namespace c2p2::modules {
                 delimiter = it->second;
             }
 
+            // sanitize
             size_t i = 0;
             while (i < input.size()) {
                 char c = static_cast<char>(input[i]);
                 if (!delimiter.empty() && i + delimiter.size() <= input.size()) {
-                    std::string_view sub(reinterpret_cast<const char*>(input.data() + i), delimiter.size());
-                    if (sub == delimiter) {
+                    if (std::string_view sub(reinterpret_cast<const char*>(input.data() + i), delimiter.size()); sub == delimiter) {
                         i += delimiter.size();
                         continue;
                     }
@@ -89,6 +91,7 @@ namespace c2p2::modules {
                 i++;
             }
 
+            // 2 hex characters make 1 full byte
             if (clean_input.size() % 2 != 0) {
                 return std::unexpected(ModuleError{
                     .message = "Hex decode error: Input length must be even (excluding whitespace and delimiters)"
@@ -97,6 +100,7 @@ namespace c2p2::modules {
 
             output.reserve(clean_input.size() / 2);
 
+            // process pairs into bytes
             for (size_t idx = 0; idx < clean_input.size(); idx += 2) {
                 const uint8_t high = hex_to_nibble(static_cast<char>(clean_input[idx]));
                 const uint8_t low = hex_to_nibble(static_cast<char>(clean_input[idx + 1]));
@@ -107,6 +111,7 @@ namespace c2p2::modules {
                     });
                 }
 
+                //combine high and low nibbles
                 uint8_t byte_val = (high << 4) | low;
                 output.push_back(static_cast<std::byte>(byte_val));
             }

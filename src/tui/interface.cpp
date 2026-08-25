@@ -24,7 +24,7 @@ static std::string buffer_to_safe_string(const DataBuffer& buffer) {
         if (std::isprint(c) || c == '\n' || c == '\t' || c == '\r') {
             safe_str += static_cast<char>(c);
         } else {
-            safe_str += '.';
+            safe_str += '.'; //not printable
         }
     }
     return safe_str;
@@ -49,7 +49,7 @@ static bool write_file(const std::string& filepath, const DataBuffer& buffer) {
     return true;
 }
 
-static std::string invert_action(const std::string& action) {
+static std::string invert_action(const std::string& action) { //for revers
     if (action == "compress") return "decompress";
     if (action == "decompress") return "compress";
     if (action == "encode") return "decode";
@@ -68,7 +68,7 @@ int run() {
     std::vector<std::string> pipeline_entries;
     int selected_pipeline_index = 0;
     std::string command_input;
-    std::string input_text = "Welcome to c2p2! To begin run 'help' for a list of commands and ' list' to see available modules.";
+    std::string input_text = "Welcome to c2p2! Please read documentation at https://github.com/Linkernel0x/c2p2/wiki";
     std::string output_text;
 
     auto append_buffer_from_text = [](const std::string& text) {
@@ -80,10 +80,10 @@ int run() {
         return buffer;
     };
 
+    //formats step details (ID, module, action)
     auto refresh_pipeline_menu = [&]() {
         pipeline_entries.clear();
-        const auto& steps = pipeline.get_steps();
-        for (const auto& step : steps) {
+        for (const auto& steps = pipeline.get_steps(); const auto& step : steps) {
             std::string line = std::format("[{}] {} {}", step.instance_id, step.module->get_id(), step.action);
             pipeline_entries.emplace_back(std::move(line));
         }
@@ -100,16 +100,16 @@ int run() {
             return;
         }
 
-        auto in_buffer = append_buffer_from_text(input_text);
+        const auto in_buffer = append_buffer_from_text(input_text);
 
-        auto res = pipeline.run(in_buffer);
-        if (res) {
+        if (auto res = pipeline.run(in_buffer)) {
             output_text = buffer_to_safe_string(*res);
         } else {
             output_text = "Error: " + res.error().message;
         }
     };
 
+    //syncs elements and triggers pipeline
     auto sync_pipeline_ui = [&]() {
         refresh_pipeline_menu();
         if (selected_pipeline_index >= static_cast<int>(pipeline_entries.size())) {
@@ -121,12 +121,13 @@ int run() {
     MenuOption menu_option;
     auto pipeline_menu = Menu(&pipeline_entries, &selected_pipeline_index, menu_option);
 
-    InputOption input_box_option;
+    InputOption input_box_option; //reruns on input change
     input_box_option.on_change = [&] {
         execute_pipeline();
     };
     auto input_box = Input(&input_text, "Type input text here...", input_box_option);
 
+    //command input
     InputOption command_option;
     command_option.on_enter = [&] {
         if (command_input.empty()) return;
@@ -136,23 +137,21 @@ int run() {
         ss >> cmd;
 
         if (cmd == "add") {
-            std::string id, module_name, action;
-            if (ss >> id >> module_name >> action && !action.empty()) {
+            std::string module_name, action;
+            if (std::string id; ss >> id >> module_name >> action && !action.empty()) {
                 auto mod = Registry::instance().create(module_name);
                 if (mod) {
                     ParamsMap params;
                     std::string key_val;
                     while (ss >> key_val) {
-                        auto pos = key_val.find('=');
-                        if (pos != std::string::npos) {
+                        if (auto pos = key_val.find('='); pos != std::string::npos) {
                             params[key_val.substr(0, pos)] = key_val.substr(pos + 1);
                         }
                     }
 
                     auto valid_actions = mod->get_supported_actions();
-                    bool action_valid = std::find(valid_actions.begin(), valid_actions.end(), action) != valid_actions.end();
 
-                    if (!action_valid) {
+                    if (bool action_valid = std::ranges::find(valid_actions, action) != valid_actions.end(); !action_valid) {
                         output_text = std::format("Error: Action '{}' not valid for module '{}'!", action, module_name);
                         command_input.clear();
                         return;
@@ -219,10 +218,10 @@ int run() {
             std::string output_file_path;
             std::string inline_input;
 
+            // Allows execution on raw files directly, bypassing UI bounds
             while (ss >> token) {
                 if (token == "--input-file") {
-                    std::string path;
-                    if (ss >> path) in_buffer = read_file(path);
+                    if (std::string path; ss >> path) in_buffer = read_file(path);
                 } else if (token == "--output-file") {
                     if (!(ss >> output_file_path)) {
                         output_text = "Error: missing output file path";
@@ -240,8 +239,7 @@ int run() {
                 in_buffer = append_buffer_from_text(text_to_use);
             }
 
-            auto res = pipeline.run(in_buffer);
-            if (res) {
+            if (auto res = pipeline.run(in_buffer)) {
                 if (!output_file_path.empty()) {
                     if (write_file(output_file_path, *res)) {
                         output_text = "Result successfully saved in " + output_file_path;
@@ -308,10 +306,13 @@ int run() {
 
     auto command_box = Input(&command_input, " >", command_option);
 
+    //render wrapper allowing scrolling
+    // FIXME: scrolling doesn't work properly for... reasons
     auto output_renderer = Renderer([&] {
         return paragraph(output_text) | yframe | vscroll_indicator;
     });
 
+    //split components
     auto main_container = Container::Vertical({
         Container::Horizontal({
             pipeline_menu,
@@ -323,6 +324,7 @@ int run() {
         command_box
     });
 
+    //grid builder
     auto main_renderer = Renderer(main_container, [&] {
         auto left_column = window(text(" Pipeline "), pipeline_menu->Render()) | size(WIDTH, EQUAL, 35);
         auto top_right = window(text(" Input "), input_box->Render()) | size(HEIGHT, LESS_THAN, 8);

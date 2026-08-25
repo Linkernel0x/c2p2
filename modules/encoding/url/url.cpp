@@ -1,6 +1,7 @@
 #include "url.hpp"
 #include <format>
 #include <cstddef>
+#include <ranges>
 #include <string_view>
 
 namespace c2p2::modules {
@@ -37,6 +38,7 @@ namespace c2p2::modules {
         {"~",  "%7E"}
     };
 
+    //flip key-value pairs for encoding
     static std::unordered_map<std::string, std::string> invert_map(
     const std::unordered_map<std::string, std::string>& original_map) {
         std::unordered_map<std::string, std::string> inverted;
@@ -52,8 +54,9 @@ namespace c2p2::modules {
     const DataBuffer& input,
     const std::unordered_map<std::string, std::string>& map)
     {
+        // find the longest key
         size_t max_search_len = 0;
-        for (const auto& [val, key] : map) {
+        for (const auto& val : map | std::views::keys) {
             if (val.length() > max_search_len) {
                 max_search_len = val.length();
             }
@@ -65,8 +68,9 @@ namespace c2p2::modules {
         size_t i = 0;
         while (i < input.size()) {
             bool matched = false;
-            size_t current_search_len = std::min(max_search_len, input.size() - i);
+            const size_t current_search_len = std::min(max_search_len, input.size() - i);
 
+            //try matching longest potential substrings first
             for (size_t len = current_search_len; len > 0; --len) {
                 std::string_view sub(reinterpret_cast<const char*>(input.data() + i), len);
 

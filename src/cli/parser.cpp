@@ -7,7 +7,7 @@
 
 namespace c2p2::cli {
 
-static std::string invert_action(const std::string& action) {
+static std::string invert_action(const std::string& action) { // for --reverse
     if (action == "compress") return "decompress";
     if (action == "decompress") return "compress";
     if (action == "encode") return "decode";
@@ -27,7 +27,7 @@ int run(int argc, char* argv[]) {
 
     std::string first_arg = argv[1];
 
-    // --- MODALITÀ RUN PIPELINE DA FILE JSON ---
+    // from json
     if (first_arg == "run") {
         std::string pipeline_file;
         std::string input_file_path;
@@ -36,8 +36,7 @@ int run(int argc, char* argv[]) {
         bool reverse = false;
 
         for (int i = 2; i < argc; ++i) {
-            std::string arg = argv[i];
-            if (arg == "--pipeline" && i + 1 < argc) {
+            if (std::string arg = argv[i]; arg == "--pipeline" && i + 1 < argc) {
                 pipeline_file = argv[++i];
             } else if (arg == "--reverse") {
                 reverse = true;
@@ -46,6 +45,7 @@ int run(int argc, char* argv[]) {
             } else if (arg == "--output-file" && i + 1 < argc) {
                 output_file_path = argv[++i];
             } else {
+                //arguments are concatenated into a string
                 if (!raw_input.empty()) raw_input += ' ';
                 raw_input += arg;
             }
@@ -60,7 +60,7 @@ int run(int argc, char* argv[]) {
 
         if (reverse) {
             auto original_steps = pipeline.get_steps();
-            std::reverse(original_steps.begin(), original_steps.end());
+            std::ranges::reverse(original_steps);
             pipeline.clear();
 
             for (auto& step : original_steps) {
@@ -73,6 +73,7 @@ int run(int argc, char* argv[]) {
             }
         }
 
+        // Read input data
         DataBuffer in_buffer;
         if (!input_file_path.empty()) {
             if (std::ifstream f(input_file_path, std::ios::binary | std::ios::ate); f) {
@@ -111,7 +112,7 @@ int run(int argc, char* argv[]) {
         return 0;
     }
 
-    // --- MODALITÀ SINGOLO MODULO ---
+    //direct single module
     if (argc < 3) {
         std::cerr << "Error: Missing action for module '" << first_arg << "'\n";
         return 1;
@@ -131,10 +132,9 @@ int run(int argc, char* argv[]) {
     std::string output_file_path;
     std::string raw_input;
 
+    //parse arguments
     for (int i = 3; i < argc; ++i) {
-        std::string arg = argv[i];
-
-        if (arg == "--input-file" && i + 1 < argc) {
+        if (std::string arg = argv[i]; arg == "--input-file" && i + 1 < argc) {
             if (std::ifstream f(argv[++i], std::ios::binary | std::ios::ate); f) {
                 auto size = f.tellg();
                 f.seekg(0, std::ios::beg);
@@ -176,8 +176,7 @@ int run(int argc, char* argv[]) {
     }
 
     if (!output_file_path.empty()) {
-        std::ofstream out(output_file_path, std::ios::binary);
-        if (out) {
+        if (std::ofstream out(output_file_path, std::ios::binary); out) {
             out.write(reinterpret_cast<const char*>(result->data()), result->size());
         } else {
             std::cerr << "Error: Could not write to output file '" << output_file_path << "'\n";

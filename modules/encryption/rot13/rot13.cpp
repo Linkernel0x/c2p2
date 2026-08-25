@@ -10,6 +10,7 @@ namespace c2p2::modules
 
         for (std::byte b : input) {
             char c = static_cast<char>(b);
+            // Only process alphabetic characters
             if (c >= 'a' && c <= 'z') {
                 c = 'a' + (c - 'a' + shift) % 26;
             } else if (c >= 'A' && c <= 'Z') {
@@ -29,7 +30,7 @@ namespace c2p2::modules
         DataBuffer output;
         int shift = 13;
 
-        if (auto it = params.find("--shift"); it != params.end()) {
+        if (const auto it = params.find("--shift"); it != params.end()) {
             try {
                 shift = std::stoi(it->second);
             } catch (...) {

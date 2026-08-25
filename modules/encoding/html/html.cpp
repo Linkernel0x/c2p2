@@ -6,6 +6,7 @@
 
 namespace c2p2::modules {
 
+    //"character" [named entity, decimal, hex]
     const std::unordered_map<std::string, std::array<std::string, 3>> html_entities = {
         {"&",  {"&amp;", "&#38;", "&#x26;"}},
         {"<",  {"&lt;", "&#60;", "&#x3C;"}},
@@ -34,6 +35,7 @@ namespace c2p2::modules {
         {"”",  {"&rdquo;", "&#8223;", "&#8223;"}},
     };
 
+    //reverse lookup map
     static const std::unordered_map<std::string, std::string>& get_decode_map() {
         static std::unordered_map<std::string, std::string> decode_map;
         if (decode_map.empty()) {
@@ -55,7 +57,7 @@ namespace c2p2::modules {
 
         if (action == "encode") {
             size_t fmt = 0;
-            if (auto it = params.find("format"); it != params.end()) {
+            if (const auto it = params.find("format"); it != params.end()) {
                 try { fmt = std::stoull(it->second); } catch (...) { fmt = 0; }
                 if (fmt > 2) fmt = 0;
             }
@@ -66,21 +68,21 @@ namespace c2p2::modules {
             while (i < input.size()) {
                 bool matched = false;
 
-                auto b = std::to_integer<uint8_t>(input[i]);
+                const auto b = std::to_integer<uint8_t>(input[i]);
 
+                // determine utf-8 bytes by pattern
                 size_t char_len = 1;
-                if ((b & 0xE0) == 0xC0) char_len = 2;
-                else if ((b & 0xF0) == 0xE0) char_len = 3;
-                else if ((b & 0xF8) == 0xF0) char_len = 4;
+                if ((b & 0xE0) == 0xC0) char_len = 2;      //110xxxxx
+                else if ((b & 0xF0) == 0xE0) char_len = 3; //1110xxxx
+                else if ((b & 0xF8) == 0xF0) char_len = 4; //11110xxx
 
                 if (i + char_len <= input.size()) {
                     std::string sequence(reinterpret_cast<const char*>(input.data() + i), char_len);
 
-                    auto it = html_entities.find(sequence);
-                    if (it != html_entities.end()) {
-                        const std::string& replacement = it->second[fmt];
-                        for (char c : replacement) {
-                            output.push_back(std::byte(c));
+                    //check if current char needs replacement
+                    if (auto it = html_entities.find(sequence); it != html_entities.end()) {
+                        for (const std::string& replacement = it->second[fmt]; char c : replacement) {
+                            output.push_back(static_cast<std::byte>(c));
                         }
                         i += char_len;
                         matched = true;
@@ -102,7 +104,8 @@ namespace c2p2::modules {
                 bool matched = false;
 
                 if (static_cast<char>(input[i]) == '&') {
-                    size_t max_lookahead = std::min(input.size(), i + 10);
+                    //limit lookahead to avoid scanning all input
+                    const size_t max_lookahead = std::min(input.size(), i + 10);
                     size_t semi_pos = i;
 
                     for (size_t j = i + 1; j < max_lookahead; ++j) {
@@ -112,6 +115,7 @@ namespace c2p2::modules {
                         }
                     }
 
+                    // extract entity string between & and ;
                     if (semi_pos > i) {
                         size_t entity_len = semi_pos - i + 1;
                         std::string entity(reinterpret_cast<const char*>(input.data() + i), entity_len);
@@ -119,7 +123,7 @@ namespace c2p2::modules {
                         auto it = decode_map.find(entity);
                         if (it != decode_map.end()) {
                             for (char c : it->second) {
-                                output.push_back(std::byte(c));
+                                output.push_back(static_cast<std::byte>(c));
                             }
                             i += entity_len;
                             matched = true;

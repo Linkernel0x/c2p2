@@ -73,7 +73,7 @@ namespace c2p2::modules {
         const std::string& filename
     ) {
         const auto& map = get_format_map();
-        auto it = map.find(format);
+        const auto it = map.find(format);
 
         if (it == map.end()) {
             return std::unexpected(ModuleError{.message = "Unsupported format: " + format});
@@ -115,6 +115,7 @@ namespace c2p2::modules {
         DataBuffer output;
         struct archive* a = archive_read_new();
 
+        // support for all formats and filters
         archive_read_support_format_all(a);
         archive_read_support_filter_all(a);
         archive_read_support_format_raw(a);
@@ -126,9 +127,7 @@ namespace c2p2::modules {
 
         struct archive_entry* entry;
         if (archive_read_next_header(a, &entry) == ARCHIVE_OK) {
-            size_t size = archive_entry_size(entry);
-
-            if (size == 0) {
+            if (const size_t size = archive_entry_size(entry); size == 0) {
                 char buffer[8192];
                 la_ssize_t bytes_read;
                 while ((bytes_read = archive_read_data(a, buffer, sizeof(buffer))) > 0) {

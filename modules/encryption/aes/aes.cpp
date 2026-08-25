@@ -36,6 +36,7 @@ namespace c2p2::modules
 
         if (auto it = params.find("--cipher"); it != params.end()) cipher_p = it->second;
 
+        //cipher fetching managed by smart pointers
         UniqueCipher cipher(EVP_CIPHER_fetch(nullptr, cipher_p.c_str(), nullptr));
         if (!cipher) {
             return std::unexpected(ModuleError{.message = "Unsupported cipher: " + cipher_p});
@@ -56,6 +57,7 @@ namespace c2p2::modules
                 std::vector<unsigned char> parsed_iv = hex_to_bytes(it->second);
                 std::copy_n(parsed_iv.begin(), std::min(parsed_iv.size(), iv.size()), iv.begin());
             } else if (iv_len > 0) {
+                // random iv and mark flag to prepend it to the final output payload
                 if (RAND_bytes(iv.data(), iv_len) != 1) {
                     return std::unexpected(ModuleError{.message = "Failed to generate random IV"});
                 }
@@ -72,6 +74,7 @@ namespace c2p2::modules
                 std::vector<unsigned char> parsed_iv = hex_to_bytes(it->second);
                 std::copy_n(parsed_iv.begin(), std::min(parsed_iv.size(), iv.size()), iv.begin());
             } else if (iv_len > 0) {
+                //slice the prepended iv bytes directly from the front of input
                 if (input.size() < static_cast<size_t>(iv_len)) {
                     return std::unexpected(ModuleError{.message = "Input too short to extract prepended IV"});
                 }
@@ -86,6 +89,7 @@ namespace c2p2::modules
             return std::unexpected(ModuleError{.message = "Failed to create OpenSSL CTX"});
         }
 
+        //iv + ciphertext + block padding + gcm Tag
         std::vector<unsigned char> output;
         output.reserve(cipher_data_len + EVP_MAX_BLOCK_LENGTH + (is_gcm ? 16 : 0) + (iv_was_generated ? iv_len : 0));
 
@@ -112,6 +116,7 @@ namespace c2p2::modules
             }
             total_outl += temp_outl;
 
+            // Fetch and append 16-byte tag in GCM mode
             if (is_gcm) {
                 std::vector<unsigned char> tag(16);
                 if (EVP_CIPHER_CTX_ctrl(ctx.get(), EVP_CTRL_GCM_GET_TAG, 16, tag.data()) != 1) {
@@ -124,6 +129,7 @@ namespace c2p2::modules
         } else if (action == "decrypt") {
             std::vector<unsigned char> tag(16);
 
+            //extract tag
             if (is_gcm) {
                 if (cipher_data_len < 16) {
                     return std::unexpected(ModuleError{.message = "Input too short for GCM tag"});
@@ -141,6 +147,7 @@ namespace c2p2::modules
             }
             total_outl += temp_outl;
 
+            // Pass tag
             if (is_gcm) {
                 if (EVP_CIPHER_CTX_ctrl(ctx.get(), EVP_CTRL_GCM_SET_TAG, 16, tag.data()) != 1) {
                     return std::unexpected(ModuleError{.message = "Failed to set GCM tag"});

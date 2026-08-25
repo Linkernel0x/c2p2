@@ -10,6 +10,7 @@ namespace c2p2::modules
 
         for (std::byte b : input) {
             char c = static_cast<char>(b);
+            // Only process printable ASCII characters (from '!' to '~')
             if (c >= '!' && c <= '~') {
                 c = '!' + (c - '!' + shift) % 94;
             }
@@ -27,7 +28,7 @@ namespace c2p2::modules
         DataBuffer output;
         int shift = 47;
 
-        if (auto it = params.find("--shift"); it != params.end()) {
+        if (const auto it = params.find("--shift"); it != params.end()) {
             try {
                 shift = std::stoi(it->second);
             } catch (...) {

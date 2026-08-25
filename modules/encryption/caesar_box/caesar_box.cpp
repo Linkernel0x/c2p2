@@ -3,12 +3,14 @@
 #include <format>
 
 namespace c2p2::modules {
+    // reads input colum by column
     static DataBuffer resolve_box(const DataBuffer& input, const size_t length_cols, const size_t length_rows) {
         DataBuffer output;
         output.reserve(input.size());
 
         for (size_t col = 0; col < length_cols; ++col) {
             for (size_t row = 0; row < length_rows; ++row) {
+                // map (row, col) grid to 1D input array
                 if (const size_t index = row * length_cols + col; index < input.size()) {
                     output.push_back(input[index]);
                 }

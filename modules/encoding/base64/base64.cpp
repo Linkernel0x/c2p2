@@ -9,7 +9,7 @@ namespace c2p2::modules {
         const ParamsMap& params
     ) const {
         DataBuffer output;
-        output.reserve((input.size() + 2) / 3 * 4);
+        output.reserve((input.size() + 2) / 3 * 4); // b64 expands bytes in ASCII
         static constexpr std::string_view base64_chars =
             "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
             "abcdefghijklmnopqrstuvwxyz"
@@ -17,10 +17,12 @@ namespace c2p2::modules {
 
         if (action == "encode") {
             for (size_t i = 0; i + 2 < input.size(); i += 3) {
+                // process input
                 uint32_t bit24 = (static_cast<uint8_t>(input[i])     << 16) |
                                  (static_cast<uint8_t>(input[i + 1]) << 8)  |
                                   static_cast<uint8_t>(input[i + 2]);
 
+                // split the 24bit int into 6bit chars
                 uint8_t idx1 = (bit24 >> 18) & 0x3F;
                 uint8_t idx2 = (bit24 >> 12) & 0x3F;
                 uint8_t idx3 = (bit24 >> 6)  & 0x3F;
@@ -34,6 +36,7 @@ namespace c2p2::modules {
             size_t remaining = input.size() % 3;
 
             if (remaining == 1) {
+                //forms two 6-bit chunks + '==' padding
                 uint32_t bit24 = static_cast<uint8_t>(input[input.size() - 1]) << 16;
 
                 output.push_back(static_cast<std::byte>(base64_chars[(bit24 >> 18) & 0x3F]));
@@ -42,6 +45,7 @@ namespace c2p2::modules {
                 output.push_back(static_cast<std::byte>('='));
             }
             else if (remaining == 2) {
+                //same thing but with three 6-bit chunks + '=' padding
                 uint32_t bit24 = (static_cast<uint8_t>(input[input.size() - 2]) << 16) |
                                  (static_cast<uint8_t>(input[input.size() - 1]) << 8);
 
@@ -53,6 +57,7 @@ namespace c2p2::modules {
             return output;
         }
         else if (action == "decode") {
+            // decode a singke char to its 6bit value
             auto decode_char = [&](char c) -> std::expected<uint32_t, ModuleError> {
                 if (c == '=') return 0;
                 auto pos = base64_chars.find(c);
@@ -62,6 +67,7 @@ namespace c2p2::modules {
                 return static_cast<uint32_t>(pos);
             };
 
+            // process in chunks of 4
             for (size_t i = 0; i + 3 < input.size(); i += 4) {
                 char c1 = static_cast<char>(input[i]);
                 char c2 = static_cast<char>(input[i + 1]);
@@ -77,11 +83,13 @@ namespace c2p2::modules {
                     return std::unexpected(ModuleError{.message = "Base64 decode error: invalid payload or character"});
                 }
 
+                // reconstruct
                 uint32_t bit24 = (*val1 << 18) |
                                  (*val2 << 12) |
                                  (*val3 << 6)  |
                                   *val4;
 
+                //extract and ignores =
                 uint8_t byte1 = (bit24 >> 16) & 0xFF;
                 output.push_back(static_cast<std::byte>(byte1));
 

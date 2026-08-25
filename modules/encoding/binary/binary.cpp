@@ -17,15 +17,17 @@ namespace c2p2::modules {
         }
 
         if (action == "encode") {
+            // 8bit x byte + delimiter
             output.reserve(input.size() * (8 + delimiter.size()));
             for (size_t i = 0; i < input.size(); i++) {
-                auto val = std::to_integer<uint8_t>(input[i]);
+                const auto val = std::to_integer<uint8_t>(input[i]);
 
-                std::string bit_str = std::bitset<8>(val).to_string();
-
-                for (char c : bit_str) {
+                // bytes to 8 ASCII char
+                for (std::string bit_str = std::bitset<8>(val).to_string(); char c : bit_str) {
                     output.push_back(static_cast<std::byte>(c));
                 }
+
+                //append deklimiter after 1 byte
                 if (i + 1 < input.size()) {
                     for (char c : delimiter) {
                         output.push_back(static_cast<std::byte>(c));
@@ -38,12 +40,13 @@ namespace c2p2::modules {
             clean_bits.reserve(input.size());
 
             size_t i = 0;
+            //sanitise
             while (i < input.size()) {
-                char c = static_cast<char>(input[i]);
+                const char c = static_cast<char>(input[i]);
 
+                // Skip delimiter
                 if (!delimiter.empty() && i + delimiter.size() <= input.size()) {
-                    std::string_view sub(reinterpret_cast<const char*>(input.data() + i), delimiter.size());
-                    if (sub == delimiter) {
+                    if (const std::string_view sub(reinterpret_cast<const char*>(input.data() + i), delimiter.size()); sub == delimiter) {
                         i += delimiter.size();
                         continue;
                     }
@@ -71,13 +74,13 @@ namespace c2p2::modules {
 
             output.reserve(clean_bits.size() / 8);
 
+            // reconstruct bytes from 8-bit
             for (size_t bit_idx = 0; bit_idx < clean_bits.size(); bit_idx += 8) {
                 uint8_t byte_val = 0;
 
                 for (size_t b = 0; b < 8; ++b) {
-                    char bit_char = static_cast<char>(clean_bits[bit_idx + b]);
-                    if (bit_char == '1') {
-                        byte_val |= (1 << (7 - b));
+                    if (const char bit_char = static_cast<char>(clean_bits[bit_idx + b]); bit_char == '1') {
+                        byte_val |= (1 << (7 - b)); // set bit position
                     }
                 }
 

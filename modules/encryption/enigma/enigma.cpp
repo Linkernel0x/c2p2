@@ -3,6 +3,7 @@
 #include <cctype>
 #include <nlohmann/json.hpp>
 
+//TODO: test commands and config
 namespace c2p2::modules {
 
     struct EnigmaRotor {
@@ -19,6 +20,7 @@ namespace c2p2::modules {
         std::vector<std::string> plugboard;
     };
 
+    //nane, wiring, notch
     const std::map<std::string, std::pair<std::string, std::string>> ROTORS_DB = {
         {"I",     {"EKMFLGDQVZNTOWYHXUSPAIBRCJ", "Q"}},
         {"II",    {"AJDKSIRUXBLHWTMCQGZNPYFVOE", "E"}},
@@ -67,7 +69,7 @@ namespace c2p2::modules {
                 }
                 auto [wiring, notches] = ROTORS_DB.at(name);
                 int pos = std::toupper(positions[i]) - 'A';
-                int ring_val = (i < rings.size()) ? (rings[i] - 1) : 0;
+                int ring_val = (i < rings.size()) ? (rings[i] - 1) : 0; //converts ring position to zero-based index
 
                 config.rotors.push_back(EnigmaRotor{
                     .name = name,
@@ -78,7 +80,7 @@ namespace c2p2::modules {
                 });
             }
 
-            std::string ref_name = j["reflector"].get<std::string>();
+            auto ref_name = j["reflector"].get<std::string>();
             if (!REFLECTORS_DB.contains(ref_name)) {
                 return std::unexpected(ModuleError{.message = "Unknown reflector: " + ref_name});
             }
@@ -99,12 +101,12 @@ namespace c2p2::modules {
         auto& r_mid   = config.rotors[n - 2];
         auto& r_right = config.rotors[n - 1];
 
-        bool mid_at_notch   = is_at_notch(r_mid);
-        bool right_at_notch = is_at_notch(r_right);
+        const bool mid_at_notch   = is_at_notch(r_mid);
+        const bool right_at_notch = is_at_notch(r_right);
 
         if (mid_at_notch) {
             r_left.position = (r_left.position + 1) % 26;
-            r_mid.position  = (r_mid.position + 1) % 26; // Double step
+            r_mid.position  = (r_mid.position + 1) % 26; // Double step anomaly
         } else if (right_at_notch) {
             r_mid.position = (r_mid.position + 1) % 26;
         }
@@ -122,20 +124,22 @@ namespace c2p2::modules {
         return c;
     }
 
+    //dx to sx through rotor with ring offset
     static int forward_rotor(const EnigmaRotor& r, int input_idx) {
-        int shift = r.position - r.ring;
-        int in = (input_idx + shift + 26) % 26;
-        char out_char = r.wiring[in];
-        int out_idx = (out_char - 'A' - shift + 26) % 26;
+        const int shift = r.position - r.ring;
+        const int in = (input_idx + shift + 26) % 26;
+        const char out_char = r.wiring[in];
+        const int out_idx = (out_char - 'A' - shift + 26) % 26;
         return out_idx;
     }
 
+    //sx to dx after reflector
     static int backward_rotor(const EnigmaRotor& r, int input_idx) {
-        int shift = r.position - r.ring;
-        int in = (input_idx + shift + 26) % 26;
-        char target = static_cast<char>('A' + in);
-        int pos_in_wiring = static_cast<int>(r.wiring.find(target));
-        int out_idx = (pos_in_wiring - shift + 26) % 26;
+        const int shift = r.position - r.ring;
+        const int in = (input_idx + shift + 26) % 26;
+        const char target = static_cast<char>('A' + in);
+        const int pos_in_wiring = static_cast<int>(r.wiring.find(target));
+        const int out_idx = (pos_in_wiring - shift + 26) % 26;
         return out_idx;
     }
 
@@ -144,6 +148,7 @@ namespace c2p2::modules {
 
         rotate_rotors(config);
 
+        // Plugboard -> Right-to-Left Rotors -> Reflector -> Left-to-Right Rotors -> Plugboard
         c = apply_plugboard(config, c);
         int signal = c - 'A';
 
@@ -151,11 +156,11 @@ namespace c2p2::modules {
             signal = forward_rotor(config.rotors[i], signal);
         }
 
-        char ref_char = config.reflector_wiring[signal];
+        const char ref_char = config.reflector_wiring[signal];
         signal = ref_char - 'A';
 
-        for (size_t i = 0; i < config.rotors.size(); ++i) {
-            signal = backward_rotor(config.rotors[i], signal);
+        for (const auto & rotor : config.rotors) {
+            signal = backward_rotor(rotor, signal);
         }
 
         c = static_cast<char>('A' + signal);
@@ -185,6 +190,7 @@ namespace c2p2::modules {
         EnigmaConfig config = config_res.value();
         DataBuffer output;
 
+        //ignores non-alphabetic characters
         for (std::byte b : input) {
             char c = static_cast<char>(b);
 
