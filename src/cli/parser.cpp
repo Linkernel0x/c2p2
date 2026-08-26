@@ -1,195 +1,209 @@
 #include "cli/parser.hpp"
 #include "core/pipeline.hpp"
 #include "core/registry.hpp"
+#include "helpers/ui.hpp"
 #include <iostream>
 #include <fstream>
-#include <algorithm>
+#include <filesystem>
 
 namespace c2p2::cli {
 
-static std::string invert_action(const std::string& action) { // for --reverse
-    if (action == "compress") return "decompress";
-    if (action == "decompress") return "compress";
-    if (action == "encode") return "decode";
-    if (action == "decode") return "encode";
-    if (action == "encrypt") return "decrypt";
-    if (action == "decrypt") return "encrypt";
-    return action;
-}
-
-int run(int argc, char* argv[]) {
-    if (argc < 2) {
-        std::cerr << "Usage:\n"
-                  << "  Single Module:   c2p2 <module> <action> [params...] [--input-file <path> | \"text\"] [--output-file <path>]\n"
-                  << "  Pipeline File:   c2p2 run --pipeline <json_path> [--reverse] [--input-file <path> | \"text\"] [--output-file <path>]\n";
-        return 1;
-    }
-
-    std::string first_arg = argv[1];
-
-    // from json
-    if (first_arg == "run") {
-        std::string pipeline_file;
+    struct ParsedCommand {
+        std::string module_name;
+        std::string action;
+        ParamsMap params;
         std::string input_file_path;
         std::string output_file_path;
-        std::string raw_input;
+        bool pipeline = false;
+        std::string pipeline_path;
         bool reverse = false;
+        std::string inline_input;
+        bool malformed = false;
+    };
 
-        for (int i = 2; i < argc; ++i) {
-            if (std::string arg = argv[i]; arg == "--pipeline" && i + 1 < argc) {
-                pipeline_file = argv[++i];
-            } else if (arg == "--reverse") {
-                reverse = true;
-            } else if (arg == "--input-file" && i + 1 < argc) {
-                input_file_path = argv[++i];
-            } else if (arg == "--output-file" && i + 1 < argc) {
-                output_file_path = argv[++i];
-            } else {
-                //arguments are concatenated into a string
-                if (!raw_input.empty()) raw_input += ' ';
-                raw_input += arg;
-            }
+    static bool read_file(const std::string& path, DataBuffer& buffer) {
+        if (!std::filesystem::exists(path)) {
+            std::cerr << "Error: Could not open file for reading: " << path << std::endl;
+            return false;
         }
 
-        if (pipeline_file.empty()) {
-            std::cerr << "Error: --pipeline <path.json> is required for 'run' command.\n";
+        std::ifstream file(path, std::ios::binary);
+        if (!file) {
+            std::cerr << "Error: Could not open file for reading: " << path << std::endl;
+            return false;
+        }
+
+        buffer.resize(std::filesystem::file_size(path));
+        file.read(reinterpret_cast<char*>(buffer.data()), buffer.size()); //so the compiler is happy :)
+
+        return true;
+    }
+
+    static bool write_file(const std::string& path, const DataBuffer& buffer) {
+        std::ofstream file(path, std::ios::binary);
+
+        if (!file) {
+            std::cerr << "Error: Could not open file for writing: " << path << std::endl;
+            return false;
+        }
+
+        file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
+        return true;
+    }
+
+    static int execute_module(const std::string& module_name, const std::string& action, const DataBuffer& input, const ParamsMap& params, DataBuffer& output) {
+        const auto module = Registry::instance().create(module_name);
+        if (!module) {
+            std::cerr << "Error: Could not create module: " << module_name << std::endl;
             return 1;
         }
 
-        Pipeline pipeline = Pipeline::import_from_json(pipeline_file);
+        auto pipeline = Pipeline();
+        pipeline.add_step("temp", module, action, params);
+        auto result = pipeline.run(input);
 
-        if (reverse) {
-            auto original_steps = pipeline.get_steps();
-            std::ranges::reverse(original_steps);
-            pipeline.clear();
-
-            for (auto& step : original_steps) {
-                pipeline.add_step(
-                    step.instance_id,
-                    step.module,
-                    invert_action(step.action),
-                    step.params
-                );
-            }
-        }
-
-        // Read input data
-        DataBuffer in_buffer;
-        if (!input_file_path.empty()) {
-            if (std::ifstream f(input_file_path, std::ios::binary | std::ios::ate); f) {
-                auto size = f.tellg();
-                f.seekg(0, std::ios::beg);
-                in_buffer.resize(size);
-                f.read(reinterpret_cast<char*>(in_buffer.data()), size);
-            } else {
-                std::cerr << "Error: Could not open input file '" << input_file_path << "'\n";
-                return 1;
-            }
-        } else if (!raw_input.empty()) {
-            for (char c : raw_input) in_buffer.push_back(static_cast<std::byte>(c));
-        }
-
-        auto result = pipeline.run(in_buffer);
         if (!result) {
-            std::cerr << "Error while executing pipeline: " << result.error().message << "\n";
+            std::cerr << "Error: " << result.error().message << std::endl;
             return 1;
         }
+        output = result.value();
 
-        if (!output_file_path.empty()) {
-            std::ofstream out(output_file_path, std::ios::binary);
-            if (out) {
-                out.write(reinterpret_cast<const char*>(result->data()), result->size());
-            } else {
-                std::cerr << "Error: Could not write output file '" << output_file_path << "'\n";
-                return 1;
-            }
-        } else {
-            for (std::byte b : *result) {
-                std::cout << static_cast<char>(b);
-            }
-            std::cout << "\n";
-        }
         return 0;
     }
 
-    //direct single module
-    if (argc < 3) {
-        std::cerr << "Error: Missing action for module '" << first_arg << "'\n";
-        return 1;
-    }
+    static int execute_pipeline(const std::string& path, const bool reverse, const DataBuffer& input, DataBuffer& output) {
+        auto pipeline = Pipeline::import_from_json(path);
 
-    std::string module_name = first_arg;
-    std::string action = argv[2];
-
-    auto mod = Registry::instance().create(module_name);
-    if (!mod) {
-        std::cerr << "Error: Module '" << module_name << "' not found.\n";
-        return 1;
-    }
-
-    ParamsMap params;
-    DataBuffer in_buffer;
-    std::string output_file_path;
-    std::string raw_input;
-
-    //parse arguments
-    for (int i = 3; i < argc; ++i) {
-        if (std::string arg = argv[i]; arg == "--input-file" && i + 1 < argc) {
-            if (std::ifstream f(argv[++i], std::ios::binary | std::ios::ate); f) {
-                auto size = f.tellg();
-                f.seekg(0, std::ios::beg);
-                in_buffer.resize(size);
-                f.read(reinterpret_cast<char*>(in_buffer.data()), size);
-            } else {
-                std::cerr << "Error: Could not open input file '" << argv[i] << "'\n";
-                return 1;
+        if (reverse) {
+            auto steps = pipeline.get_steps();
+            std::reverse(steps.begin(), steps.end());
+            pipeline.clear();
+            for (auto& s : steps) {
+                pipeline.add_step(s.instance_id, s.module, helpers::invert_action(s.action), s.params);
             }
         }
-        else if (arg == "--output-file" && i + 1 < argc) {
-            output_file_path = argv[++i];
-        }
-        else if (arg.rfind("--", 0) == 0 && i + 1 < argc && argv[i + 1][0] != '-') {
-            params[arg] = argv[++i];
-        }
-        else if (auto pos = arg.find('='); pos != std::string::npos) {
-            std::string key = arg.substr(0, pos);
-            if (key.rfind("--", 0) != 0) key = "--" + key;
-            params[key] = arg.substr(pos + 1);
-        }
-        else {
-            if (!raw_input.empty()) raw_input += ' ';
-            raw_input += arg;
-        }
-    }
 
-    if (in_buffer.empty() && !raw_input.empty()) {
-        for (char c : raw_input) in_buffer.push_back(static_cast<std::byte>(c));
-    }
-
-    Pipeline pipeline;
-    pipeline.add_step("cli_step", mod, action, params);
-
-    auto result = pipeline.run(in_buffer);
-    if (!result) {
-        std::cerr << "Error while executing: " << result.error().message << "\n";
-        return 1;
-    }
-
-    if (!output_file_path.empty()) {
-        if (std::ofstream out(output_file_path, std::ios::binary); out) {
-            out.write(reinterpret_cast<const char*>(result->data()), result->size());
-        } else {
-            std::cerr << "Error: Could not write to output file '" << output_file_path << "'\n";
+        auto result = pipeline.run(input);
+        if (!result) {
+            std::cerr << "Error: " << result.error().message << std::endl;
             return 1;
         }
-    } else {
-        for (std::byte b : *result) {
-            std::cout << static_cast<char>(b);
-        }
-        std::cout << "\n";
+        output = result.value();
+
+        return 0;
     }
 
-    return 0;
-}
+    static ParsedCommand parse_command(const char* argv[], int argc) {
+        ParsedCommand cmd;
+        cmd.malformed = false;
+
+        if (argc < 2) {
+            cmd.malformed = true;
+            return cmd;
+        }
+
+        std::string first_arg = argv[1];
+        if (first_arg == "run") {
+            cmd.pipeline = true;
+            if (argc < 3) {
+                cmd.malformed = true;
+                return cmd;
+            }
+
+            for (int i = 2; i < argc; ++i) {
+                std::string arg = argv[i];
+                if (arg == "--input-file" && i + 1 < argc) {
+                    cmd.input_file_path = argv[i + 1];
+                    i += 1;
+                } else if (arg == "--output-file" && i + 1 < argc) {
+                    cmd.output_file_path = argv[i + 1];
+                    i += 1;
+                } else if (arg == "--pipeline" && i + 1 < argc) {
+                    cmd.pipeline_path = argv[i + 1];
+                    i += 1;
+                } else if (arg == "--reverse") {
+                    cmd.reverse = true;
+                } else {
+                    if (!cmd.inline_input.empty()) cmd.inline_input += ' ';
+                    cmd.inline_input += arg;
+                }
+            }
+
+            if (cmd.pipeline_path.empty()) {
+                cmd.malformed = true;
+                return cmd;
+            }
+        } else {
+            cmd.module_name = argv[1];
+
+            if (argc < 3) {
+                cmd.malformed = true;
+                return cmd;
+            }
+
+            cmd.action = argv[2];
+            for (int i = 3; i < argc; ++i) {
+                std::string arg = argv[i];
+                if (arg == "--input-file" && i + 1 < argc) {
+                    cmd.input_file_path = argv[i + 1];
+                    i += 1;
+                } else if (arg == "--output-file" && i + 1 < argc) {
+                    cmd.output_file_path = argv[i + 1];
+                    i += 1;
+                } else if (arg.starts_with("--")) {
+                    const std::string& key = arg;
+                    std::string value;
+                    if (i + 1 < argc && !std::string(argv[i + 1]).starts_with("--")) {
+                        value = argv[i + 1];
+                        i += 1;
+                    }
+                    cmd.params[key] = value;
+                } else {
+                    if (!cmd.inline_input.empty()) cmd.inline_input += ' ';
+                    cmd.inline_input += arg;
+                }
+            }
+        }
+
+        return cmd;
+    }
+
+    int run(const int argc, const char* argv[]) {
+        const ParsedCommand cmd = parse_command(argv, argc);
+        DataBuffer input;
+
+        if (cmd.malformed) {
+            std::cerr << "Usage:" << std::endl
+                    << "c2p2  > open TUI" << std::endl
+                    << "c2p2 <module> <action> [params...] [--input-file | 'input text'] [--output-file] [--reverse]  > execute a module" << std::endl
+                    << "c2p2 run <pipeline_path>  > execute a pipeline." << std::endl;
+            return 1;
+        }
+
+        if (!cmd.input_file_path.empty()) {
+            read_file(cmd.input_file_path, input);
+        } else if (!cmd.inline_input.empty()) {
+            input = Module::string_to_databuffer(cmd.inline_input);
+        }
+
+        DataBuffer output;
+        int code;
+        std::string first_arg = argv[1];
+        if (first_arg == "run") {
+            code = execute_pipeline(cmd.pipeline_path, cmd.reverse, input, output);
+        } else {
+            code = execute_module(cmd.module_name, cmd.action, input, cmd.params, output);
+        }
+
+        if (code == 0) {
+            if (!cmd.output_file_path.empty()) {
+                write_file(cmd.output_file_path, output);
+            } else {
+                std::cout << Module::databuffer_to_string(output) << std::endl;
+            }
+        }
+
+        return 0;
+    }
 
 }

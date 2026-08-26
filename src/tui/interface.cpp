@@ -1,6 +1,7 @@
 #include "tui/interface.hpp"
 #include "core/pipeline.hpp"
 #include "core/registry.hpp"
+#include  "helpers/ui.hpp"
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/screen_interactive.hpp>
 #include <ftxui/dom/elements.hpp>
@@ -47,16 +48,6 @@ static bool write_file(const std::string& filepath, const DataBuffer& buffer) {
     if (!file) return false;
     file.write(reinterpret_cast<const char*>(buffer.data()), static_cast<std::streamsize>(buffer.size()));
     return true;
-}
-
-static std::string invert_action(const std::string& action) { //for revers
-    if (action == "compress") return "decompress";
-    if (action == "decompress") return "compress";
-    if (action == "encode") return "decode";
-    if (action == "decode") return "encode";
-    if (action == "encrypt") return "decrypt";
-    if (action == "decrypt") return "encrypt";
-    return action;
 }
 
 
@@ -274,7 +265,7 @@ int run() {
             std::reverse(steps.begin(), steps.end());
             pipeline.clear();
             for (auto& s : steps) {
-                pipeline.add_step(s.instance_id, s.module, invert_action(s.action), s.params);
+                pipeline.add_step(s.instance_id, s.module, helpers::invert_action(s.action), s.params);
             }
             sync_pipeline_ui();
         } else if (cmd == "help") {
