@@ -10,328 +10,373 @@
 #include <sstream>
 #include <format>
 #include <fstream>
+#include <ranges>
 #include <algorithm>
 #include <cctype>
 
-namespace c2p2::tui {
+namespace c2p2::tui
+{
+    using namespace ftxui;
 
-using namespace ftxui;
+    enum CommandType {
+        ADD,
+        REMOVE,
+        CLEAR,
+        LIST,
+        HELP,
+        EXPORT,
+        IMPORT,
+        REVERSE,
+        RUN
+    };
 
-static std::string buffer_to_safe_string(const DataBuffer& buffer) {
-    std::string safe_str;
-    safe_str.reserve(buffer.size());
-    for (std::byte b : buffer) {
-        auto c = static_cast<unsigned char>(b);
-        if (std::isprint(c) || c == '\n' || c == '\t' || c == '\r') {
-            safe_str += static_cast<char>(c);
-        } else {
-            safe_str += '.'; //not printable
+    struct ParsedCommand {
+        CommandType type;
+        std::string id;
+        std::string module_name;
+        std::string action;
+        ParamsMap params;
+        std::string input_file_path;
+        std::string output_file_path;
+        std::string pipeline_path;
+        bool reverse = false;
+        std::string inline_input;
+        bool malformed = false;
+        std::string error_message;
+    };
+
+    static std::string buffer_to_safe_string(const DataBuffer& buffer) {
+        std::string result;
+        for (std::byte b : buffer ) {
+            if (char c = static_cast<char>(b); std::isprint (static_cast<unsigned char>(c))) {
+                result += c;
+            } else {
+                result += '.';
+            }
+        }
+        return result;
+    }
+
+    const std::string HELP_MESSAGE = "Available commands:\n"
+                                  "- add <id> <module> <action> [params...] -> Add a new module to the pipeline\n"
+                                  "- remove <id> -> Remove a module from the pipeline\n"
+                                  "- list -> List all modules in the pipeline\n"
+                                  "- clear -> Clear the entire pipeline\n"
+                                  "- run [--input-file <path>] [--output-file <path>] [\"text\"] -> Run the pipeline with specified input\n"
+                                  "- export <path> -> Export the pipeline to a JSON file\n"
+                                  "- import <path> -> Import a pipeline from a JSON file\n"
+                                  "- help [module] -> Show help message";
+
+    static void parse_params(std::istringstream& stream, ParamsMap& params) {
+        auto extract_value = [&stream](const std::string& initial_val) -> std::string {
+            std::string val = initial_val;
+            if (val.starts_with('"') && !val.ends_with('"')) {
+                std::string rest;
+                std::getline(stream, rest, '"');
+                val += rest;
+            } else if (val.starts_with('"') && val.ends_with('"') && val.size() >= 2) {
+                val = val.substr(1, val.size() - 2);
+            }
+
+            if (val.starts_with('"')) val.erase(0, 1);
+            return val;
+        };
+
+        for (std::string token; stream >> token;) {
+            if (auto pos = token.find('='); pos != std::string::npos) {
+                std::string key = token.substr(0, pos);
+                std::string raw_val = token.substr(pos + 1);
+                params[key] = extract_value(raw_val);
+            } else {
+                const std::string val = extract_value(token);
+                if (!params["inline-input"].empty()) params["inline-input"] += ' ';
+                params["inline-input"] += val;
+            }
         }
     }
-    return safe_str;
-}
 
-static DataBuffer read_file(const std::string& filepath) {
-    std::ifstream file(filepath, std::ios::binary | std::ios::ate);
-    if (!file) return {};
+    static ParsedCommand parse_command(const std::string& command_string) {
+        ParsedCommand cmd;
+        cmd.malformed = false;
+        std::istringstream stream(command_string);
+        std::string arg1;
+        stream >> arg1;
 
-    auto size = file.tellg();
-    file.seekg(0, std::ios::beg);
+        if (arg1 == "add") {
+            cmd.type = ADD;
 
-    DataBuffer buffer(size);
-    file.read(reinterpret_cast<char*>(buffer.data()), size);
-    return buffer;
-}
+            std::string id;
+            std::string name;
+            std::string action;
+            if (!(stream >> id >> name >> action)) {
+                cmd.malformed = true;
+                return cmd;
+            } else {
+                cmd.id = id;
+                cmd.module_name = name;
+                cmd.action = action;
+            }
 
-static bool write_file(const std::string& filepath, const DataBuffer& buffer) {
-    std::ofstream file(filepath, std::ios::binary);
-    if (!file) return false;
-    file.write(reinterpret_cast<const char*>(buffer.data()), static_cast<std::streamsize>(buffer.size()));
-    return true;
-}
+            parse_params(stream, cmd.params);
 
+        } else if (arg1 == "run") {
+            cmd.type = RUN;
 
-int run() {
-    auto screen = ScreenInteractive::Fullscreen();
+            parse_params(stream, cmd.params);
 
-    Pipeline pipeline;
+            if (cmd.params.contains("--input-file")) {
+                cmd.input_file_path = cmd.params["--input-file"];
+                cmd.params.erase("--input-file");
+            }
+            if (cmd.params.contains("--output-file")) {
+                cmd.output_file_path = cmd.params["--output-file"];
+                cmd.params.erase("--output-file");
+            }
+            if (cmd.params.contains("inline-input")) {
+                cmd.inline_input = cmd.params["inline-input"];
+                cmd.params.erase("inline-input");
+            }
 
-    std::vector<std::string> pipeline_entries;
-    int selected_pipeline_index = 0;
-    std::string command_input;
-    std::string input_text = "Welcome to c2p2! Please read documentation at https://github.com/Linkernel0x/c2p2/wiki";
-    std::string output_text;
+        } else if (arg1 == "remove") {
+            cmd.type = REMOVE;
+            if (!(stream >> cmd.id)) cmd.malformed = true;
 
-    auto append_buffer_from_text = [](const std::string& text) {
-        DataBuffer buffer;
-        buffer.reserve(text.size());
-        for (unsigned char c : text) {
-            buffer.push_back(static_cast<std::byte>(c));
+        } else if (arg1 == "clear") {
+            cmd.type = CLEAR;
+
+        } else if (arg1 == "list") {
+            cmd.type = LIST;
+
+        } else if (arg1 == "help") {
+            cmd.type = HELP;
+            stream >> cmd.module_name;
+
+        } else if (arg1 == "export") {
+            cmd.type = EXPORT;
+            if (!(stream >> cmd.pipeline_path)) {cmd.malformed = true;}
+
+        } else if (arg1 == "import") {
+            cmd.type = IMPORT;
+            if (!(stream >> cmd.pipeline_path)) {cmd.malformed = true;}
+
+        } else if (arg1 == "reverse") {
+            cmd.type = REVERSE;
+            cmd.reverse = true;
+
+        } else {
+            cmd.malformed = true;
         }
-        return buffer;
-    };
 
-    //formats step details (ID, module, action)
-    auto refresh_pipeline_menu = [&]() {
+        return cmd;
+    }
+
+    static void execute_command(const ParsedCommand& command, Pipeline& pipeline, std::string& output_text) {
+        switch (command.type) {
+            case ADD: {
+                const auto mod = Registry::instance().create(command.module_name);
+                if (mod == nullptr) {
+                    output_text = "Error: Module '" + command.module_name + "' not found.";
+                    break;
+                }
+                bool id_exists = false;
+                for (const auto& step : pipeline.get_steps()) {
+                    if (step.instance_id == command.id) {
+                        output_text = "Error: Step ID '" + command.id + "' already exists.";
+                        id_exists = true;
+                        break;
+                    }
+                }
+                if (!id_exists) {
+                    pipeline.add_step(command.id, mod, command.action, command.params);
+                }
+                break;
+            }
+            case REMOVE: {
+                if (!pipeline.remove_step(command.id)) {
+                    output_text = "No step found with ID: " + command.id;
+                }
+                break;
+            }
+            case CLEAR: {
+                pipeline.clear();
+                break;
+            }
+            case LIST: {
+                output_text = "Modules:\n";
+                const auto& modules = Registry::instance().get_all();
+                if (modules.empty()) {
+                    output_text += "<no modules registered>\n";
+                }
+                for (const auto& id : modules | std::views::keys) {
+                    output_text += "- " + id;
+
+                    auto temp_mod = Registry::instance().create(id);
+                    if (temp_mod) {
+                        auto actions = temp_mod->get_supported_actions();
+                        output_text += "  ·  ";
+                        for (size_t i = 0; i < actions.size(); ++i) {
+                            output_text += actions[i];
+                            if (i + 1 < actions.size()) {
+                                output_text += ", ";
+                            }
+                        }
+                        output_text += '\n';
+                    }
+                }
+                break;
+            }
+            case EXPORT: {
+                pipeline.export_to_json(command.pipeline_path);
+                output_text = "Pipeline exported to: " + command.pipeline_path;
+                break;
+            }
+            case IMPORT: {
+                pipeline = Pipeline::import_from_json(command.pipeline_path);
+                output_text = "Pipeline imported from: " + command.pipeline_path;
+                break;
+            }
+            case REVERSE: {
+                auto steps = pipeline.get_steps();
+                std::ranges::reverse(steps);
+                pipeline.clear();
+                for (auto& [instance_id, module, action, params] : steps) {
+                    pipeline.add_step(instance_id, module, helpers::invert_action(action), params);
+                }
+                break;
+            }
+            case RUN: {
+                DataBuffer input;
+                if (!command.input_file_path.empty()) {
+                    helpers::read_file(command.input_file_path, input);
+                } else if (!command.inline_input.empty()) {
+                    input = Module::string_to_databuffer(command.inline_input);
+                }
+
+                auto res = pipeline.run(input);
+                if (!res) {
+                    output_text = "Error: " + res.error().message;
+                    break;
+                }
+                const DataBuffer& output = res.value();
+                if (!command.output_file_path.empty()) {
+                    helpers::write_file(command.output_file_path, output);
+                } else {
+                    output_text = buffer_to_safe_string(output);
+                }
+                break;
+            }
+            case HELP:
+                if (!command.module_name.empty()) {
+                    const auto mod = Registry::instance().create(command.module_name);
+                    if (mod == nullptr) {
+                        output_text = "Error: Module '" + command.module_name + "' not found.";
+                        break;
+                    }
+                    output_text = Module::databuffer_to_string(mod->help_text());
+                } else {
+                    output_text = HELP_MESSAGE;
+                }
+                break;
+            default:
+                output_text = HELP_MESSAGE;
+                break;
+        }
+    }
+
+    static auto refresh_pipeline_menu(std::vector<std::string>& pipeline_entries, const Pipeline& pipeline, int& selected_pipeline_index) {
         pipeline_entries.clear();
-        for (const auto& steps = pipeline.get_steps(); const auto& step : steps) {
-            std::string line = std::format("[{}] {} {}", step.instance_id, step.module->get_id(), step.action);
-            pipeline_entries.emplace_back(std::move(line));
+        for (const auto& step : pipeline.get_steps()) {
+            pipeline_entries.push_back(std::format("[{}] {} {}", step.instance_id, step.module->get_id(), step.action));
         }
         if (pipeline_entries.empty()) {
-            pipeline_entries.push_back("< Empty Pipeline >");
-        }
-    };
-
-    refresh_pipeline_menu();
-
-    auto execute_pipeline = [&]() {
-        if (pipeline.get_steps().empty()) {
-            output_text = input_text;
-            return;
+            pipeline_entries.emplace_back("< Empty Pipeline >");
         }
 
-        const auto in_buffer = append_buffer_from_text(input_text);
-
-        if (auto res = pipeline.run(in_buffer)) {
-            output_text = buffer_to_safe_string(*res);
-        } else {
-            output_text = "Error: " + res.error().message;
-        }
-    };
-
-    //syncs elements and triggers pipeline
-    auto sync_pipeline_ui = [&]() {
-        refresh_pipeline_menu();
-        if (selected_pipeline_index >= static_cast<int>(pipeline_entries.size())) {
+        if (selected_pipeline_index >= static_cast<int>(pipeline_entries.size())) { //to prevent out of bounds
             selected_pipeline_index = std::max(0, static_cast<int>(pipeline_entries.size()) - 1);
         }
-        execute_pipeline();
     };
 
-    MenuOption menu_option;
-    auto pipeline_menu = Menu(&pipeline_entries, &selected_pipeline_index, menu_option);
+    int run() {
+        auto screen = ScreenInteractive::Fullscreen();
 
-    InputOption input_box_option; //reruns on input change
-    input_box_option.on_change = [&] {
-        execute_pipeline();
-    };
-    auto input_box = Input(&input_text, "Type input text here...", input_box_option);
+        Pipeline pipeline;
+        std::string input_text = "Welcome to c2p2! Check the documentation at https://github.com/Linkernel0x/c2p2/wiki";
+        std::string output_text;
+        std::string command_input;
+        std::vector<std::string> pipeline_entries;
+        int selected_pipeline_index = 0;
 
-    //command input
-    InputOption command_option;
-    command_option.on_enter = [&] {
-        if (command_input.empty()) return;
-
-        std::stringstream ss(command_input);
-        std::string cmd;
-        ss >> cmd;
-
-        if (cmd == "add") {
-            std::string module_name, action;
-            if (std::string id; ss >> id >> module_name >> action && !action.empty()) {
-                auto mod = Registry::instance().create(module_name);
-                if (mod) {
-                    ParamsMap params;
-                    std::string key_val;
-                    while (ss >> key_val) {
-                        if (auto pos = key_val.find('='); pos != std::string::npos) {
-                            params[key_val.substr(0, pos)] = key_val.substr(pos + 1);
-                        }
-                    }
-
-                    auto valid_actions = mod->get_supported_actions();
-
-                    if (bool action_valid = std::ranges::find(valid_actions, action) != valid_actions.end(); !action_valid) {
-                        output_text = std::format("Error: Action '{}' not valid for module '{}'!", action, module_name);
-                        command_input.clear();
-                        return;
-                    }
-
-                    for (const auto& step : pipeline.get_steps()) {
-                        if (step.instance_id == id) {
-                            output_text = "Error: ID already exists!";
-                            command_input.clear();
-                            return;
-                        }
-                    }
-                    pipeline.add_step(id, mod, action, params);
-                    sync_pipeline_ui();
-                } else {
-                    output_text = "Error: Module not found!";
-                }
-            } else {
-                output_text = "Error: Usage: add <id> <module> <action> [key=value ...]";
-            }
-        }
-        else if (cmd == "remove") {
-            std::string id;
-            if (ss >> id) {
-                if (!pipeline.remove_step(id)) {
-                    output_text = "Error: step not found!";
-                }
-                sync_pipeline_ui();
-            } else {
-                output_text = "Error: Usage: remove <id>";
-            }
-        }
-        else if (cmd == "list") {
-            output_text = "Modules:\n";
-            const auto& modules = Registry::instance().get_all();
-            if (modules.empty()) {
-                output_text += "<no modules registered>\n";
-            }
-            for (const auto& [id, _] : modules) {
-                output_text += "- " + id;
-
-                auto temp_mod = Registry::instance().create(id);
-                if (temp_mod) {
-                    auto actions = temp_mod->get_supported_actions();
-                    output_text += "  ·  ";
-                    for (size_t i = 0; i < actions.size(); ++i) {
-                        output_text += actions[i];
-                        if (i + 1 < actions.size()) {
-                            output_text += ", ";
-                        }
-                    }
-                    output_text += '\n';
-                }
-            }
-        }
-        else if (cmd == "clear") {
-            pipeline.clear();
-            sync_pipeline_ui();
-        }
-        else if (cmd == "run")
-        {
-            std::string token;
-            DataBuffer in_buffer;
-            std::string output_file_path;
-            std::string inline_input;
-
-            // Allows execution on raw files directly, bypassing UI bounds
-            while (ss >> token) {
-                if (token == "--input-file") {
-                    if (std::string path; ss >> path) in_buffer = read_file(path);
-                } else if (token == "--output-file") {
-                    if (!(ss >> output_file_path)) {
-                        output_text = "Error: missing output file path";
-                        command_input.clear();
-                        return;
-                    }
-                } else {
-                    if (!inline_input.empty()) inline_input += ' ';
-                    inline_input += token;
-                }
+        auto update_result = [&] {
+            if (pipeline.get_steps().empty()) {
+                output_text = "Welcome to c2p2! Check the documentation at https://github.com/Linkernel0x/c2p2/wiki. \n\nThe pipeline is currently empty. Use the 'add' command to add modules to the pipeline, or 'import' to load a pipeline from a JSON file. \n\nIf you need help, read documentation or type 'help' for a quick list of available commands.";
+                return;
             }
 
-            if (in_buffer.empty()) {
-                std::string text_to_use = inline_input.empty() ? input_text : inline_input;
-                in_buffer = append_buffer_from_text(text_to_use);
-            }
-
-            if (auto res = pipeline.run(in_buffer)) {
-                if (!output_file_path.empty()) {
-                    if (write_file(output_file_path, *res)) {
-                        output_text = "Result successfully saved in " + output_file_path;
-                    } else {
-                        output_text = "Error while saving file!";
-                    }
-                } else {
-                    output_text = buffer_to_safe_string(*res);
-                }
-            } else {
+            if (auto res = pipeline.run(Module::string_to_databuffer(input_text)); !res) {
                 output_text = "Error: " + res.error().message;
-            }
-        } else if (cmd == "export") {
-            std::string path;
-            if (ss >> path) {
-                pipeline.export_to_json(path);
-                output_text = "Pipeline exported to " + path;
             } else {
-                output_text = "Error: Please provide a file path for export.";
+                output_text = buffer_to_safe_string(res.value());
             }
-        } else if (cmd == "import") {
-            std::string path;
-            if (ss >> path) {
-                pipeline = Pipeline::import_from_json(path);
-                sync_pipeline_ui();
-                output_text = "Pipeline imported from " + path;
+        };
+
+        refresh_pipeline_menu(pipeline_entries, pipeline, selected_pipeline_index);
+        update_result();
+
+        auto pipeline_menu = Menu(&pipeline_entries, &selected_pipeline_index);
+
+        InputOption input_option;
+        input_option.on_change = [&] {
+            update_result();
+        };
+
+        InputOption command_option;
+        command_option.on_enter = [&] {
+            if (const auto parsed_command = parse_command(command_input); parsed_command.malformed) {
+                output_text = "Error: Malformed command. Type 'help' for usage.";
             } else {
-                output_text = "Error: Please provide a file path for import.";
-            }
-        } else if (cmd == "reverse") {
-            auto steps = pipeline.get_steps();
-            std::reverse(steps.begin(), steps.end());
-            pipeline.clear();
-            for (auto& s : steps) {
-                pipeline.add_step(s.instance_id, s.module, helpers::invert_action(s.action), s.params);
-            }
-            sync_pipeline_ui();
-        } else if (cmd == "help") {
-            std::string module;
-            if (ss >> module) {
-                auto mod = Registry::instance().create(module);
-                if (mod) {
-                    output_text = buffer_to_safe_string(mod->help_text());
-                } else {
-                    output_text = "Error: unknown module";
+                std::string prev_output = output_text;
+                execute_command(parsed_command, pipeline, output_text);
+
+                if (!(parsed_command.type == RUN || parsed_command.type == HELP || parsed_command.type == LIST || parsed_command.type == EXPORT || parsed_command.type == IMPORT) && output_text == prev_output) {
+                    update_result();
                 }
-            } else {
-                output_text = "Available commands:\n"
-                              "- add <id> <module> <action> [params...] -> Add a new module to the pipeline\n"
-                              "- remove <id> -> Remove a module from the pipeline\n"
-                              "- list -> List all modules in the pipeline\n"
-                              "- clear -> Clear the entire pipeline\n"
-                              "- run [--input-file <path>] [--output-file <path>] [\"text\"] -> Run the pipeline with specified input\n"
-                              "- export <path> -> Export the pipeline to a JSON file\n"
-                              "- import <path> -> Import a pipeline from a JSON file\n"
-                              "- help [module] -> Show help message";
             }
-        } else {
-            output_text = " Unknown command: " + cmd;
-        }
+            command_input.clear();
+            refresh_pipeline_menu(pipeline_entries, pipeline, selected_pipeline_index);
+        };
 
-        command_input.clear();
-    };
+        auto input_box = Input(&input_text, "Enter input text here...", input_option);
+        auto command_box = Input(&command_input, " > Enter command...", command_option);
 
-    auto command_box = Input(&command_input, " >", command_option);
+        auto output_renderer = Renderer([&] {
+            return paragraph(output_text) | yframe | vscroll_indicator;
+        });
 
-    //render wrapper allowing scrolling
-    // FIXME: scrolling doesn't work properly for... reasons
-    auto output_renderer = Renderer([&] {
-        return paragraph(output_text) | yframe | vscroll_indicator;
-    });
+        auto main_container = Container::Vertical({
+            Container::Horizontal({
+                pipeline_menu,
+                Container::Vertical({
+                    input_box,
+                    output_renderer
+                })
+            }),
+            command_box
+        });
 
-    //split components
-    auto main_container = Container::Vertical({
-        Container::Horizontal({
-            pipeline_menu,
-            Container::Vertical({
-                input_box,
-                output_renderer
-            })
-        }),
-        command_box
-    });
+        auto main_renderer = Renderer(main_container, [&] {
+               auto left_column = window(text(" Pipeline "), pipeline_menu->Render()) | size(WIDTH, EQUAL, 35);
+               auto top_right = window(text(" Input "), input_box->Render()) | size(HEIGHT, LESS_THAN, 8);
+               auto bottom_right = window(text(" Output "), output_renderer->Render()) | flex;
 
-    //grid builder
-    auto main_renderer = Renderer(main_container, [&] {
-        auto left_column = window(text(" Pipeline "), pipeline_menu->Render()) | size(WIDTH, EQUAL, 35);
-        auto top_right = window(text(" Input "), input_box->Render()) | size(HEIGHT, LESS_THAN, 8);
-        auto bottom_right = window(text(" Output "), output_renderer->Render()) | flex;
+               auto right_column = vbox({ top_right, bottom_right }) | flex;
+               auto main_area = hbox({ left_column, right_column }) | flex;
+               auto bottom_area = window(text(" Command "), command_box->Render()) | size(HEIGHT, EQUAL, 3);
 
-        auto right_column = vbox({ top_right, bottom_right }) | flex;
-        auto main_area = hbox({ left_column, right_column }) | flex;
-        auto bottom_area = window(text(" Command "), command_box->Render()) | size(HEIGHT, EQUAL, 3);
+               return window(text(" c2p2 TUI "), vbox({ main_area, bottom_area }) | flex);
+           });
 
-        return window(text(" c2p2 "), vbox({ main_area, bottom_area }) | flex);
-    });
-
-    execute_pipeline();
-
-    screen.Loop(main_renderer);
-    return 0;
-}
-
+        screen.Loop(main_renderer);
+        return 0;
+    }
 }

@@ -2,9 +2,6 @@
 #include "core/pipeline.hpp"
 #include "core/registry.hpp"
 #include "helpers/ui.hpp"
-#include <iostream>
-#include <fstream>
-#include <filesystem>
 
 namespace c2p2::cli {
 
@@ -20,36 +17,6 @@ namespace c2p2::cli {
         std::string inline_input;
         bool malformed = false;
     };
-
-    static bool read_file(const std::string& path, DataBuffer& buffer) {
-        if (!std::filesystem::exists(path)) {
-            std::cerr << "Error: Could not open file for reading: " << path << std::endl;
-            return false;
-        }
-
-        std::ifstream file(path, std::ios::binary);
-        if (!file) {
-            std::cerr << "Error: Could not open file for reading: " << path << std::endl;
-            return false;
-        }
-
-        buffer.resize(std::filesystem::file_size(path));
-        file.read(reinterpret_cast<char*>(buffer.data()), buffer.size()); //so the compiler is happy :)
-
-        return true;
-    }
-
-    static bool write_file(const std::string& path, const DataBuffer& buffer) {
-        std::ofstream file(path, std::ios::binary);
-
-        if (!file) {
-            std::cerr << "Error: Could not open file for writing: " << path << std::endl;
-            return false;
-        }
-
-        file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
-        return true;
-    }
 
     static int execute_module(const std::string& module_name, const std::string& action, const DataBuffer& input, const ParamsMap& params, DataBuffer& output) {
         const auto module = Registry::instance().create(module_name);
@@ -93,7 +60,7 @@ namespace c2p2::cli {
         return 0;
     }
 
-    static ParsedCommand parse_command(const char* argv[], int argc) {
+    static ParsedCommand parse_command(char* argv[], int argc) {
         ParsedCommand cmd;
         cmd.malformed = false;
 
@@ -168,7 +135,7 @@ namespace c2p2::cli {
         return cmd;
     }
 
-    int run(const int argc, const char* argv[]) {
+    int run(const int argc, char* argv[]) {
         const ParsedCommand cmd = parse_command(argv, argc);
         DataBuffer input;
 
@@ -181,7 +148,7 @@ namespace c2p2::cli {
         }
 
         if (!cmd.input_file_path.empty()) {
-            read_file(cmd.input_file_path, input);
+            helpers::read_file(cmd.input_file_path, input);
         } else if (!cmd.inline_input.empty()) {
             input = Module::string_to_databuffer(cmd.inline_input);
         }
@@ -197,7 +164,7 @@ namespace c2p2::cli {
 
         if (code == 0) {
             if (!cmd.output_file_path.empty()) {
-                write_file(cmd.output_file_path, output);
+                helpers::write_file(cmd.output_file_path, output);
             } else {
                 std::cout << Module::databuffer_to_string(output) << std::endl;
             }
