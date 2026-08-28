@@ -28,6 +28,8 @@ Here are the modules currently available in `c2p2`:
 #### Hashing
 * **`md`** (`hash`, `check`) – Hashing with MD4 and MD5 (set in `--md`, default: 5) and configurable `--format` parameter
 * **`sha`** (`hash`, `check`) – Hashing with different SHA variants (set in `--sha`, default: 256) and configurable `--variant` parameter
+#### Utilities
+* **`morse`** (`encode`, `decode`) – Convert text to Morse code and vice versa, with optional audio output and style.
 
 *More modules are coming soon :D*
 

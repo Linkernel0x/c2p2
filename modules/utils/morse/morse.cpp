@@ -242,10 +242,10 @@ namespace c2p2::modules {
             output = string_to_databuffer(formatted_output);
 
             if (!audio_params.path.empty()) {
-                DataBuffer wav_data = generate_morse_audio(standard_morse, audio_params);
-                if (!helpers::write_file(audio_params.path, wav_data)) {
-                    return std::unexpected(ModuleError{.message = "Failed to write audio file: " + audio_params.path});
-                }
+                std::thread([standard_morse, audio_params]() {
+                    DataBuffer wav_data = generate_morse_audio(standard_morse, audio_params);
+                    helpers::write_file(audio_params.path, wav_data);
+                }).detach();
             }
         }
 

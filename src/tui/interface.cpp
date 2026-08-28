@@ -13,6 +13,7 @@
 #include <ranges>
 #include <algorithm>
 #include <cctype>
+#include <future>
 
 namespace c2p2::tui
 {
@@ -321,17 +322,35 @@ namespace c2p2::tui
         std::vector<std::string> pipeline_entries;
         int selected_pipeline_index = 0;
 
+        std::future<void> current_task;
+        uint64_t task_id = 0;
+
         auto update_result = [&] {
             if (pipeline.get_steps().empty()) {
                 output_text = "Welcome to c2p2! Check the documentation at https://github.com/Linkernel0x/c2p2/wiki. \n\nThe pipeline is currently empty. Use the 'add' command to add modules to the pipeline, or 'import' to load a pipeline from a JSON file. \n\nIf you need help, read documentation or type 'help' for a quick list of available commands.";
                 return;
             }
 
-            if (auto res = pipeline.run(Module::string_to_databuffer(input_text)); !res) {
-                output_text = "Error: " + res.error().message;
-            } else {
-                output_text = buffer_to_safe_string(res.value());
-            }
+            const uint64_t current_id = ++task_id;
+            const std::string text_to_process = input_text;
+
+            output_text = "Processing...";
+            screen.PostEvent(Event::Custom);
+
+            current_task = std::async(std::launch::async, [&pipeline, text_to_process, current_id, &task_id, &output_text, &screen] {
+                auto res = pipeline.run(Module::string_to_databuffer(text_to_process));
+
+                if (current_id != task_id) {
+                    return;
+                }
+
+                if (!res) {
+                    output_text = "Error: " + res.error().message;
+                } else {
+                    output_text = buffer_to_safe_string(res.value());
+                }
+                screen.PostEvent(Event::Custom);
+            });
         };
 
         refresh_pipeline_menu(pipeline_entries, pipeline, selected_pipeline_index);

@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <filesystem>
+#include <future>
 
 namespace c2p2::helpers {
     static std::string invert_action(const std::string& action) { //for revers
@@ -29,13 +30,17 @@ namespace c2p2::helpers {
 
     static bool write_file(const std::string& path, const DataBuffer& buffer) {
         std::ofstream file(path, std::ios::binary);
-
         if (!file) {
             std::cerr << "Error: Could not open file for writing: " << path << std::endl;
             return false;
         }
-
         file.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
         return true;
+    }
+    
+    static std::future<bool> write_file_async(std::string path, DataBuffer buffer) {
+        return std::async(std::launch::async, [path = std::move(path), buffer = std::move(buffer)]() mutable {
+            return write_file(path, buffer);
+        });
     }
 }
