@@ -15,11 +15,6 @@ namespace c2p2::helpers {
     }
 
     static bool read_file(const std::string& path, DataBuffer& buffer) {
-        if (!std::filesystem::exists(path)) {
-            std::cerr << "Error: Could not open file for reading: " << path << std::endl;
-            return false;
-        }
-
         std::ifstream file(path, std::ios::binary);
         if (!file) {
             std::cerr << "Error: Could not open file for reading: " << path << std::endl;

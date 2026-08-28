@@ -22,6 +22,8 @@
 #include "hashing/md/md.hpp"
 #include "hashing/sha/sha.hpp"
 
+#include "utils/morse/morse.hpp"
+
 
 static void register_all_modules() {
     auto& reg = c2p2::Registry::instance();
@@ -44,6 +46,8 @@ static void register_all_modules() {
     reg.register_module("binary", []() { return std::make_shared<c2p2::modules::Binary>(); });
     reg.register_module("html", []() { return std::make_shared<c2p2::modules::HtmlEntities>(); });
     reg.register_module("url", []() { return std::make_shared<c2p2::modules::Url>(); });
+
+    reg.register_module("morse", []() { return std::make_shared<c2p2::modules::Morse>(); });
 }
 
 int main(const int argc, char* argv[]) {

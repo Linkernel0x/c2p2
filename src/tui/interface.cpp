@@ -112,8 +112,16 @@ namespace c2p2::tui
                 cmd.malformed = true;
                 return cmd;
             } else {
+                auto mod = Registry::instance().create(name);
+                std::vector<std::string> actions = mod->get_supported_actions();
+
                 cmd.id = id;
                 cmd.module_name = name;
+                if (!std::ranges::contains(actions, action)) {
+                    cmd.malformed = true;
+                    cmd.error_message = "Error: Module '" + name + "' does not support action '" + action + "'.";
+                    return cmd;
+                }
                 cmd.action = action;
             }
 
@@ -247,7 +255,10 @@ namespace c2p2::tui
             case RUN: {
                 DataBuffer input;
                 if (!command.input_file_path.empty()) {
-                    helpers::read_file(command.input_file_path, input);
+                    if (!helpers::read_file(command.input_file_path, input)) {
+                        output_text = "Error: Failed to read input file: " + command.input_file_path;
+                        break;
+                    }
                 } else if (!command.inline_input.empty()) {
                     input = Module::string_to_databuffer(command.inline_input);
                 }
@@ -259,7 +270,10 @@ namespace c2p2::tui
                 }
                 const DataBuffer& output = res.value();
                 if (!command.output_file_path.empty()) {
-                    helpers::write_file(command.output_file_path, output);
+                    if (!helpers::write_file(command.output_file_path, output)) {
+                        output_text = "Error: Failed to write output file: " + command.output_file_path;
+                        break;
+                    }
                 } else {
                     output_text = buffer_to_safe_string(output);
                 }
@@ -333,7 +347,11 @@ namespace c2p2::tui
         InputOption command_option;
         command_option.on_enter = [&] {
             if (const auto parsed_command = parse_command(command_input); parsed_command.malformed) {
-                output_text = "Error: Malformed command. Type 'help' for usage.";
+                if (!parsed_command.error_message.empty()) {
+                    output_text = parsed_command.error_message;
+                } else {
+                    output_text = "Error: Malformed command. Type 'help' for usage.";
+                }
             } else {
                 std::string prev_output = output_text;
                 execute_command(parsed_command, pipeline, output_text);

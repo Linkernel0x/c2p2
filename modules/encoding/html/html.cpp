@@ -57,7 +57,7 @@ namespace c2p2::modules {
 
         if (action == "encode") {
             size_t fmt = 0;
-            if (const auto it = params.find("format"); it != params.end()) {
+            if (const auto it = params.find("--format"); it != params.end()) {
                 try { fmt = std::stoull(it->second); } catch (...) { fmt = 0; }
                 if (fmt > 2) fmt = 0;
             }

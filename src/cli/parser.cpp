@@ -141,9 +141,9 @@ namespace c2p2::cli {
 
         if (cmd.malformed) {
             std::cerr << "Usage:" << std::endl
-                    << "c2p2  > open TUI" << std::endl
-                    << "c2p2 <module> <action> [params...] [--input-file | 'input text'] [--output-file] [--reverse]  > execute a module" << std::endl
-                    << "c2p2 run <pipeline_path>  > execute a pipeline." << std::endl;
+                    << "c2p2  -> open TUI" << std::endl
+                    << "c2p2 <module> <action> [params...] [--input-file | 'input text'] [--output-file] [--reverse]  -> execute a module" << std::endl
+                    << "c2p2 run <pipeline_path>  -> execute a pipeline." << std::endl;
             return 1;
         }
 
