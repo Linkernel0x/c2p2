@@ -38,9 +38,9 @@ namespace c2p2::helpers {
         return true;
     }
     
-    static std::future<bool> write_file_async(std::string path, DataBuffer buffer) {
-        return std::async(std::launch::async, [path = std::move(path), buffer = std::move(buffer)]() mutable {
-            return write_file(path, buffer);
-        });
+    static void write_file_async(std::string path, DataBuffer buffer) {
+        std::thread([path = std::move(path), buffer = std::move(buffer)]() {
+            write_file(path, buffer);
+        }).detach();
     }
 }

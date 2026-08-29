@@ -114,15 +114,15 @@ namespace c2p2::tui
                 return cmd;
             } else {
                 std::vector<std::string> actions;
-                try {
-                    auto mod = Registry::instance().create(name);
-                    actions = mod->get_supported_actions();
-                } catch (...) {
+
+                auto mod = Registry::instance().create(name);
+                if (mod == nullptr) {
                     cmd.malformed = true;
                     cmd.error_message = "Error: Module '" + name + "' not found.";
                     return cmd;
                 }
-
+                actions = mod->get_supported_actions();
+                
                 cmd.id = id;
                 cmd.module_name = name;
                 if (!std::ranges::contains(actions, action)) {

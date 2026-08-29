@@ -99,16 +99,26 @@ namespace c2p2::modules {
                 return std::unexpected(ModuleError{"Charset cannot be empty"});
             }
 
-            std::vector<std::byte> raw_bytes(size);
-            if (!fill_random_bytes(raw_bytes, seed)) {
-                return std::unexpected(ModuleError{"Failed to generate random bytes for token"});
-            }
-
             std::string token_str;
             token_str.reserve(size);
-            for (size_t i = 0; i < size; ++i) {
-                const auto index = static_cast<size_t>(raw_bytes[i]) % charset.size();
-                token_str += charset[index];
+
+            if (seed.has_value()) {
+                std::mt19937_64 rng(seed.value());
+                std::uniform_int_distribution<size_t> dist(0, charset.size() - 1);
+                for (size_t i = 0; i < size; ++i) {
+                    token_str += charset[dist(rng)];
+                }
+            } else {
+                const size_t max_valid = (256 / charset.size()) * charset.size();
+                while (token_str.size() < size) {
+                    uint8_t byte_val;
+                    if (RAND_bytes(&byte_val, 1) != 1) {
+                        return std::unexpected(ModuleError{"Failed to generate random bytes for token"});
+                    }
+                    if (byte_val < max_valid) {
+                        token_str += charset[byte_val % charset.size()];
+                    }
+                }
             }
 
             output = string_to_databuffer(token_str);

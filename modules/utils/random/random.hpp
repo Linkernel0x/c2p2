@@ -16,7 +16,10 @@ namespace c2p2::modules {
                                "  uuid: Generates a new UUID.\n"
                                "  bytes: Generates a new random byte sequence.\n"
                                "  token: Generates a new random token.\n"
-                               "Parameters:\n";
+                               "Parameters:\n"
+                               "  --seed=<int>: Optional seed for random number generation.\n"
+                               "  --size=<int>: Size of the random byte sequence or token (default: 32).\n"
+                               "  --charset=<string>: Character set for token generation (default: alphanumeric).\n";
             return string_to_databuffer(help);
         }
 

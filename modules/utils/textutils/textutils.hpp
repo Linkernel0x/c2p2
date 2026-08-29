@@ -7,7 +7,7 @@ namespace c2p2::modules {
     public:
         [[nodiscard]] std::string get_id() const override { return "textutils"; }
         [[nodiscard]] std::vector<std::string> get_supported_actions() const override {
-            return {"process"};
+            return {"transform"};
         }
 
         [[nodiscard]] DataBuffer help_text() const override {

@@ -111,7 +111,7 @@ namespace c2p2::modules {
         DataBuffer wav;
         wav.reserve(44 + data_size);
 
-        auto append_bytes = [&wav](auto value, const size_t size) {
+        auto append_bytes = [&wav](const uint64_t value, const size_t size) {
             for (size_t i = 0; i < size; ++i) {
                 wav.push_back(static_cast<std::byte>((value >> (i * 8)) & 0xFF));
             }
