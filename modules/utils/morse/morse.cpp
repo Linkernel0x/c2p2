@@ -41,17 +41,20 @@ namespace c2p2::modules {
         case MorseStyle::PRETTY:
             if (symbol == '.') return "•";
             if (symbol == '-') return "–";
-            if (symbol == '/') return " / ";
+            if (symbol == '/') return "/";
+            if (symbol == ' ') return " ";
             break;
         case MorseStyle::BITFIELD:
             if (symbol == '.') return "01";
             if (symbol == '-') return "11";
-            if (symbol == '/') return "00";
+            if (symbol == '/') return "10";
+            if (symbol == ' ') return "00";
             break;
         case MorseStyle::RAW:
             if (symbol == '.') return "10";
             if (symbol == '-') return "1110";
-            if (symbol == '/') return "000";
+            if (symbol == ' ') return "00";
+            if (symbol == '/') return "00";
             break;
         default:
             break;
@@ -60,27 +63,27 @@ namespace c2p2::modules {
     }
 
     static std::string encode_morse(const std::string& input, const MorseStyle style) {
-        std::string output;
-        for (const char ch : input) {
-            const char upper = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
-
+        std::string standard;
+        for (const char i : input) {
+            const char upper = static_cast<char>(std::toupper(static_cast<unsigned char>(i)));
             if (upper == ' ') {
-                output += "/ ";
+                standard += "/ ";
             } else if (MORSE_MAP.contains(upper)) {
-                const std::string_view pattern = MORSE_MAP.at(upper);
-
-                if (style == MorseStyle::STANDARD) {
-                    output += pattern;
-                } else {
-                    for (const char symbol : pattern) {
-                        if (symbol == ' ') continue;
-                        output += format_symbol(symbol, style);
-                    }
-                    output += ' ';
-                }
+                standard += MORSE_MAP.at(upper);
             }
         }
-        if (!output.empty() && output.back() == ' ') output.pop_back();
+
+        if (!standard.empty() && standard.back() == ' ') {
+            standard.pop_back();
+        }
+
+        if (style == MorseStyle::STANDARD) return standard;
+
+        std::string output;
+        for (const char c : standard) {
+            output += format_symbol(c, style);
+        }
+
         return output;
     }
 
@@ -161,26 +164,24 @@ namespace c2p2::modules {
             for (int i = 0; i < total_samples; ++i) {
                 const double t = static_cast<double>(i) / sample_rate;
                 const double sample = std::sin(2.0 * M_PI * audio_params.frequency * t);
-                audio_samples.push_back(static_cast<int16_t>(sample * 32767.0 * 0.5)); // Volume 50%
+                audio_samples.push_back(static_cast<int16_t>(sample * 32767.0 * 0.5));
             }
         };
 
         auto append_silence = [&](const int duration_ms) {
-            const int total_samples = sample_rate * duration_ms / 1000;
+            const int total_samples = (sample_rate * duration_ms) / 1000;
             audio_samples.insert(audio_samples.end(), total_samples, 0);
         };
 
         for (const char c : morse_code) {
             if (c == '.') {
                 append_tone(dot_duration_ms);
-                append_silence(dot_duration_ms);// space between symbols (1 dot)
+                append_silence(dot_duration_ms);
             } else if (c == '-') {
                 append_tone(dot_duration_ms * 3);
                 append_silence(dot_duration_ms);
-            } else if (c == ' ') {
-                append_silence(dot_duration_ms * 2); //space between letters (3 dots)
-            } else if (c == '/') {
-                append_silence(dot_duration_ms * 6); //spec between words (7 dots)
+            } else if (c == ' ' || c == '/') {
+                append_silence(dot_duration_ms * 2);
             }
         }
 

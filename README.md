@@ -30,6 +30,7 @@ Here are the modules currently available in `c2p2`:
 * **`sha`** (`hash`, `check`) – Hashing with different SHA variants (set in `--sha`, default: 256) and configurable `--variant` parameter
 #### Utilities
 * **`morse`** (`encode`, `decode`) – Convert text to Morse code and vice versa, with optional audio output and style.
+* **`textutils`** (`transform`) – A collection of text processing utilities, including case conversion, trimming, and more.
 
 *More modules are coming soon :D*
 

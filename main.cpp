@@ -23,6 +23,10 @@
 #include "hashing/sha/sha.hpp"
 
 #include "utils/morse/morse.hpp"
+#include "utils/random/random.hpp"
+#include "utils/textutils/textutils.hpp"
+#include "workflow/breakpoint/breakpoint.hpp"
+#include "workflow/check/check.hpp"
 
 
 static void register_all_modules() {
@@ -48,6 +52,11 @@ static void register_all_modules() {
     reg.register_module("url", []() { return std::make_shared<c2p2::modules::Url>(); });
 
     reg.register_module("morse", []() { return std::make_shared<c2p2::modules::Morse>(); });
+    reg.register_module("textutils", []() { return std::make_shared<c2p2::modules::Textutils>(); });
+    reg.register_module("random", []() { return std::make_shared<c2p2::modules::Random>(); });
+
+    reg.register_module("check", []() { return std::make_shared<c2p2::modules::Check>(); });
+    reg.register_module("breakpoint", []() { return std::make_shared<c2p2::modules::Breakpoint>(); });
 }
 
 int main(const int argc, char* argv[]) {
