@@ -31,6 +31,12 @@ Here are the modules currently available in `c2p2`:
 #### Utilities
 * **`morse`** (`encode`, `decode`) – Convert text to Morse code and vice versa, with optional audio output and style.
 * **`textutils`** (`transform`) – A collection of text processing utilities, including case conversion, trimming, and more.
+* **`random`** (`uuid`, `bytes`, `token`) – Generate random data, including strings, numbers, and bytes, with configurable parameters.
+#### Workflow
+* **`breakpoint`** (`process`, `gentle`) – Stop pipeline execution.
+* **`check`** (`is`, `is_not`, `size`, `size_not`) – Check the current data against a value, with configurable `--value` and `--type` parameters.
+* **`delay`** (`process`) – Introduce a delay in the pipeline execution, with configurable `--ms` parameter.
+* **`copy`** (`process`) – Copy the current data to a `--file`.
 
 *More modules are coming soon :D*
 

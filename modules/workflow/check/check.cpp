@@ -94,6 +94,6 @@ namespace c2p2::modules
             return std::unexpected(ModuleError{.message = "Unknown action: " + action});
         }
 
-        return std::unexpected(ModuleError{.message = std::format("Check assertion failed for action '{}' with value '{}'", action, value_str)});
+        return std::unexpected(ModuleError{.message = std::format("Check assertion failed. Check: '{}' Value type: '{}'", action, type_str)});
     }
 }

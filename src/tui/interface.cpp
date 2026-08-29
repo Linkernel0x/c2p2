@@ -122,7 +122,7 @@ namespace c2p2::tui
                     return cmd;
                 }
                 actions = mod->get_supported_actions();
-                
+
                 cmd.id = id;
                 cmd.module_name = name;
                 if (!std::ranges::contains(actions, action)) {
