@@ -27,6 +27,8 @@
 #include "utils/textutils/textutils.hpp"
 #include "workflow/breakpoint/breakpoint.hpp"
 #include "workflow/check/check.hpp"
+#include "workflow/copy/copy.hpp"
+#include "workflow/delay/delay.hpp"
 
 
 static void register_all_modules() {
@@ -57,6 +59,8 @@ static void register_all_modules() {
 
     reg.register_module("check", []() { return std::make_shared<c2p2::modules::Check>(); });
     reg.register_module("breakpoint", []() { return std::make_shared<c2p2::modules::Breakpoint>(); });
+    reg.register_module("copy", []() { return std::make_shared<c2p2::modules::Copy>(); });
+    reg.register_module("delay", []() { return std::make_shared<c2p2::modules::Delay>(); });
 }
 
 int main(const int argc, char* argv[]) {
